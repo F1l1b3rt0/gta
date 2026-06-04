@@ -1,0 +1,174 @@
+class Validators {
+  // Validar que el campo no esté vacío
+  static String? required(String? value, {String fieldName = 'Campo'}) {
+    if (value == null || value.trim().isEmpty) {
+      return '$fieldName es requerido';
+    }
+    return null;
+  }
+  
+  // Validar email
+  static String? email(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El correo electrónico es requerido';
+    }
+    
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Ingrese un correo electrónico válido';
+    }
+    return null;
+  }
+  
+  // Validar contraseña
+  static String? password(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'La contraseña es requerida';
+    }
+    
+    if (value.length < 6) {
+      return 'La contraseña debe tener al menos 6 caracteres';
+    }
+    return null;
+  }
+  
+  // Validar confirmación de contraseña
+  static String? confirmPassword(String? value, String password) {
+    if (value == null || value.isEmpty) {
+      return 'Confirme su contraseña';
+    }
+    
+    if (value != password) {
+      return 'Las contraseñas no coinciden';
+    }
+    return null;
+  }
+  
+  // Validar nombre
+  static String? nombre(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El nombre es requerido';
+    }
+    
+    if (value.trim().length < 2) {
+      return 'El nombre debe tener al menos 2 caracteres';
+    }
+    return null;
+  }
+  
+  // Validar salario
+  static String? salario(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El salario por hora es requerido';
+    }
+    
+    final number = double.tryParse(value.trim());
+    if (number == null) {
+      return 'Ingrese un número válido';
+    }
+    
+    if (number <= 0) {
+      return 'El salario debe ser mayor a 0';
+    }
+    
+    if (number > 1000) {
+      return 'El salario parece muy alto, verifique';
+    }
+    return null;
+  }
+  
+  // Validar número de teléfono
+  static String? phone(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El teléfono es requerido';
+    }
+    
+    final cleanNumber = value.replaceAll(RegExp(r'[^\d]'), '');
+    if (cleanNumber.length != 10) {
+      return 'Ingrese un número de teléfono válido (10 dígitos)';
+    }
+    return null;
+  }
+  
+  // Validar número entero
+  static String? integer(String? value, {int min = 1, int max = 100}) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Este campo es requerido';
+    }
+    
+    final number = int.tryParse(value.trim());
+    if (number == null) {
+      return 'Ingrese un número entero válido';
+    }
+    
+    if (number < min) {
+      return 'El valor debe ser mayor o igual a $min';
+    }
+    
+    if (number > max) {
+      return 'El valor debe ser menor o igual a $max';
+    }
+    return null;
+  }
+  
+  // Validar número decimal
+  static String? decimal(String? value, {double min = 0, double max = 1000}) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Este campo es requerido';
+    }
+    
+    final number = double.tryParse(value.trim());
+    if (number == null) {
+      return 'Ingrese un número válido';
+    }
+    
+    if (number < min) {
+      return 'El valor debe ser mayor o igual a $min';
+    }
+    
+    if (number > max) {
+      return 'El valor debe ser menor o igual a $max';
+    }
+    return null;
+  }
+  
+  // Validar fecha
+  static String? date(DateTime? value) {
+    if (value == null) {
+      return 'La fecha es requerida';
+    }
+    return null;
+  }
+  
+  // Validar que sea mayor de edad
+  static String? adult(DateTime? birthDate) {
+    if (birthDate == null) {
+      return 'La fecha de nacimiento es requerida';
+    }
+    
+    final today = DateTime.now();
+    int age = today.year - birthDate.year;
+    if (today.month < birthDate.month || 
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      age--;
+    }
+    
+    if (age < 18) {
+      return 'Debe ser mayor de edad (18 años)';
+    }
+    return null;
+  }
+  
+  // Validar URL
+  static String? url(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null; // Opcional
+    }
+    
+    final urlRegex = RegExp(r'^(http|https):\/\/[^\s/$.?#].[^\s]*$');
+    if (!urlRegex.hasMatch(value.trim())) {
+      return 'Ingrese una URL válida';
+    }
+    return null;
+  }
+}
