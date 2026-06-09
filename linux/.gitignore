@@ -1,0 +1,31 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Resto del archivo...
+*.class
+*.lock
+*.log
+*.pyc
+*.swp
+.DS_Store
+.dart_tool/
+.gradle/
+.pub/
+build/
+flutter_*.png
+generated_plugin_registrant.dart
+*.iml
+*.ipr
+*.iws
+*.pid
+*.swp
+.settings/
+.vscode/
+AndroidManifest.xml
+google-services.json
+ios/Flutter/Generated.xcconfig
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+pubspec.lock
