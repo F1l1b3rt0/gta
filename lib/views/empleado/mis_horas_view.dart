@@ -510,9 +510,9 @@ class _TurnoTile extends StatelessWidget {
               ),
               child: Center(
                 child: Text(
-                  '${horas}h',
+                  _fmtH(horas),
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                   ),
@@ -609,7 +609,7 @@ class _TurnoTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '$horas h',
+                  _fmtH(horas),
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
                 ),
               ],
@@ -619,6 +619,15 @@ class _TurnoTile extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Formatea horas decimales → "Xh" o "Xh Ym"
+String _fmtH(double h) {
+  final totalMin = (h * 60).round();
+  final hrs = totalMin ~/ 60;
+  final min = totalMin % 60;
+  if (min == 0) return '${hrs}h';
+  return '${hrs}h ${min}m';
 }
 
 class _ScaleBtn extends StatefulWidget {
