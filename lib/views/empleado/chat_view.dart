@@ -386,7 +386,9 @@ class _ChatViewState extends State<ChatView>
                         ),
                         // ========== MENSAJES ==========
                         Expanded(
-                          child: ClipRect(child: _mensajes.isEmpty
+                          child: Container(
+                            color: Theme.of(context).scaffoldBackgroundColor,
+                            child: ClipRect(child: _mensajes.isEmpty
                               ? Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -455,7 +457,7 @@ class _ChatViewState extends State<ChatView>
                                     );
                                   },
                                 ),
-                        )),
+                        ))),
                         // ========== INPUT ==========
                         Container(
                           padding: const EdgeInsets.all(16),
