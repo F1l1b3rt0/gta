@@ -48,12 +48,8 @@ class _PerfilEmpleadoViewState extends State<PerfilEmpleadoView>
     if (user != null) {
       _perfil = await _perfilService.obtenerPerfil(user.id);
 
-      final qrData = {
-        'empleado_id': _perfil['id'],
-        'nombre': _perfil['nombre'],
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-      };
-      _qrData = jsonEncode(qrData);
+      // Plain UUID so the gerente scanner can look up the employee directly
+      _qrData = (_perfil['id'] as String? ?? '');
       _animationController.forward();
     }
     setState(() => _isLoading = false);
@@ -509,9 +505,9 @@ class _PerfilEmpleadoViewState extends State<PerfilEmpleadoView>
                                     ),
                                   ),
                                   child: QrImageView(
-                                    data: _qrData,
+                                    data: _qrData.isNotEmpty ? _qrData : 'empty',
                                     version: QrVersions.auto,
-                                    size: 220,
+                                    size: 280,
                                     backgroundColor: Colors.white,
                                     errorCorrectionLevel: QrErrorCorrectLevel.H,
                                   ),

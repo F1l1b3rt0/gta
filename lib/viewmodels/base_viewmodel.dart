@@ -32,7 +32,8 @@ class BaseViewModel extends ChangeNotifier {
       final result = await operation();
       return result;
     } catch (e) {
-      setError(e.toString());
+      // Only set raw error if not already overridden by caller
+      if (_errorMessage == null) setError(e.toString());
       rethrow;
     } finally {
       setLoading(false);

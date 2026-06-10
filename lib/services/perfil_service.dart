@@ -105,6 +105,41 @@ class ChatService {
         .subscribe();
   }
   
+  // Editar mensaje
+  Future<bool> editarMensaje(String mensajeId, String nuevoTexto) async {
+    try {
+      // Intenta actualizar con la bandera 'editado' (requiere columna en BD)
+      await _supabase
+          .from('mensajes_chat')
+          .update({'mensaje': nuevoTexto, 'editado': true})
+          .eq('id', mensajeId);
+      return true;
+    } catch (_) {
+      try {
+        // Fallback: actualiza solo el texto si la columna 'editado' no existe
+        await _supabase
+            .from('mensajes_chat')
+            .update({'mensaje': nuevoTexto})
+            .eq('id', mensajeId);
+        return true;
+      } catch (e) {
+        debugPrint('Error al editar mensaje: $e');
+        return false;
+      }
+    }
+  }
+
+  // Eliminar mensaje
+  Future<bool> eliminarMensaje(String mensajeId) async {
+    try {
+      await _supabase.from('mensajes_chat').delete().eq('id', mensajeId);
+      return true;
+    } catch (e) {
+      debugPrint('Error al eliminar mensaje: $e');
+      return false;
+    }
+  }
+
   // Cancelar suscripción
   void cancelarSuscripcion() {
     _channel?.unsubscribe();

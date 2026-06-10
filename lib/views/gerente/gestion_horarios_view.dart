@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/horario_service.dart';
 import '../../services/alerta_service.dart';
+import '../../services/tr.dart';
+import 'package:provider/provider.dart';
+import '../../services/language_service.dart';
 
 class _C {
   static const bg = Color(0xFFFFFFFF);
@@ -18,7 +21,7 @@ class _C {
 }
 
 class GestionHorariosView extends StatefulWidget {
-  const GestionHorariosView({super.key});
+  GestionHorariosView({super.key});
   @override
   State<GestionHorariosView> createState() => _GestionHorariosViewState();
 }
@@ -27,7 +30,11 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
     with SingleTickerProviderStateMixin {
   final HorarioService _horarioService = HorarioService();
   final AlertaService _alertaService = AlertaService();
-  DateTime _semana = DateTime.now();
+  DateTime _semana = () {
+    final now = DateTime.now();
+    // Start of current week (Monday at midnight)
+    return DateTime(now.year, now.month, now.day - (now.weekday - 1));
+  }();
   List<Map<String, dynamic>> _horarios = [];
   List<Map<String, dynamic>> _empleados = [];
   bool _isLoading = true;
@@ -39,7 +46,7 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
     super.initState();
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _cargar();
@@ -58,49 +65,123 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
     setState(() => _isLoading = false);
   }
 
-  Future<void> _asignarAutomaticos() async {
+  void _asignarAutomaticos() {
+    if (_empleados.isEmpty) {
+      _showSnack(trStatic(context, 'No hay empleados cargados', 'No employees loaded'), error: true);
+      return;
+    }
+    final seleccionados = <String>{..._empleados.map((e) => e['id'] as String)};
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(children: [
+            Icon(Icons.auto_awesome_rounded, color: Theme.of(context).colorScheme.primary, size: 22),
+            const SizedBox(width: 8),
+            Text(tr(context, 'Asignación automática', 'Auto-assignment'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ]),
+          content: SizedBox(
+            width: 340,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${tr(context, 'Semana', 'Week')}: ${DateFormat('dd/MM/yyyy').format(_semana)} – ${DateFormat('dd/MM/yyyy').format(_semana.add(const Duration(days: 6)))}',
+                  style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withAlpha(160)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  tr(context, 'Se usará la disponibilidad configurada de cada empleado.', "Each employee's configured availability will be used."),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(120)),
+                ),
+                const SizedBox(height: 14),
+                Text(tr(context, 'Empleados a incluir:', 'Employees to include:'), style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 220),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: _empleados.map((e) {
+                        final id = e['id'] as String;
+                        final nombre = e['nombre'] as String? ?? id;
+                        final checked = seleccionados.contains(id);
+                        return CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          value: checked,
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          title: Text(nombre, style: const TextStyle(fontSize: 14)),
+                          onChanged: (v) => setS(() {
+                            if (v == true) seleccionados.add(id); else seleccionados.remove(id);
+                          }),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr(context, 'Cancelar', 'Cancel'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150))),
+            ),
+            ElevatedButton.icon(
+              onPressed: seleccionados.isEmpty ? null : () async {
+                Navigator.pop(ctx);
+                await _ejecutarAsignacion(seleccionados.toList());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+              label: Text(tr(context, 'Asignar', 'Assign'), style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _ejecutarAsignacion(List<String> ids) async {
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (_) => Center(
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(color: _C.primary.withOpacity(0.20), blurRadius: 30),
-            ],
-          ),
-          child: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: _C.primaryLight),
-              SizedBox(height: 16),
-              Text(
-                'Asignando horarios...',
-                style: TextStyle(color: _C.textPrimary),
-              ),
-            ],
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              CircularProgressIndicator(color: Theme.of(context).colorScheme.primary),
+              const SizedBox(height: 16),
+              Text(tr(context, 'Asignando horarios...', 'Assigning schedules...'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
+            ]),
           ),
         ),
       ),
     );
-    final ids = _empleados.map((e) => e['id'] as String).toList();
-    final generados = await _horarioService.asignarHorariosAutomaticos(
-      _semana,
-      ids,
-    );
-    Navigator.pop(context);
-    _showSnack('${generados.length} horarios asignados');
-    await _cargar();
-    for (var h in generados) {
-      await _alertaService.notificarNuevoHorario(
-        h['empleado_id'],
-        h['dia'],
-        h['entrada'],
-        h['salida'],
-      );
+    try {
+      final generados = await _horarioService.asignarHorariosAutomaticos(_semana, ids);
+      if (mounted) Navigator.pop(context);
+      _showSnack(trStatic(context, '${generados.length} turnos asignados correctamente', '${generados.length} shifts assigned successfully'));
+      await _cargar();
+      for (var h in generados) {
+        await _alertaService.notificarNuevoHorario(h['empleado_id'], h['dia'], h['entrada'], h['salida']);
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      _showSnack(trStatic(context, 'Error al asignar: $e', 'Error assigning: $e'), error: true);
     }
   }
 
@@ -114,34 +195,27 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            'Editar Horario',
+          title: Text(
+            tr(context, 'Editar Horario', 'Edit Schedule'),
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 18,
-              color: _C.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _TimeTile(
-                label: 'Entrada',
+                label: tr(context, 'Entrada', 'Entry'),
                 time: entrada,
                 icon: Icons.login_rounded,
-                color: _C.success,
+                color: Color(0xFF00C853),
                 onTap: () async {
                   final t = await showTimePicker(
                     context: ctx,
                     initialTime: TimeOfDay.fromDateTime(entrada),
-                    builder: (c, child) => Theme(
-                      data: Theme.of(c).copyWith(
-                        colorScheme: const ColorScheme.light(
-                          primary: _C.primaryLight,
-                        ),
-                      ),
-                      child: child!,
-                    ),
+                    builder: (c, child) => child!,
                   );
                   if (t != null)
                     setS(
@@ -155,9 +229,9 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
                     );
                 },
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               _TimeTile(
-                label: 'Salida',
+                label: tr(context, 'Salida', 'Exit'),
                 time: salida,
                 icon: Icons.logout_rounded,
                 color: Colors.redAccent,
@@ -165,14 +239,7 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
                   final t = await showTimePicker(
                     context: ctx,
                     initialTime: TimeOfDay.fromDateTime(salida),
-                    builder: (c, child) => Theme(
-                      data: Theme.of(c).copyWith(
-                        colorScheme: const ColorScheme.light(
-                          primary: _C.primaryLight,
-                        ),
-                      ),
-                      child: child!,
-                    ),
+                    builder: (c, child) => child!,
                   );
                   if (t != null)
                     setS(
@@ -191,9 +258,9 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: _C.textSecondary),
+              child: Text(
+                tr(context, 'Cancelar', 'Cancel'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
               ),
             ),
             ElevatedButton(
@@ -204,18 +271,18 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
                   entrada,
                   salida,
                 );
-                _showSnack('Horario actualizado');
+                _showSnack(trStatic(context, 'Horario actualizado', 'Schedule updated'));
                 await _cargar();
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: _C.primaryLight,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text(
-                'Guardar',
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                tr(context, 'Guardar', 'Save'),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],
@@ -224,22 +291,153 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
     );
   }
 
-  void _showSnack(String msg) {
+  void _crearTurno() {
+    String? empleadoSelId;
+    String? empleadoSelNombre;
+    DateTime fecha = _semana;
+    TimeOfDay entradaTime = const TimeOfDay(hour: 9, minute: 0);
+    TimeOfDay salidaTime = const TimeOfDay(hour: 17, minute: 0);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            tr(context, 'Nuevo Turno', 'New Shift'),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Employee selector
+                DropdownButtonFormField<String>(
+                  value: empleadoSelId,
+                  decoration: InputDecoration(
+                    labelText: tr(context, 'Empleado', 'Employee'),
+                    labelStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                  items: _empleados.map((e) => DropdownMenuItem<String>(
+                    value: e['id'] as String,
+                    child: Text(e['nombre'] as String),
+                  )).toList(),
+                  onChanged: (v) => setS(() {
+                    empleadoSelId = v;
+                    empleadoSelNombre = _empleados.firstWhere((e) => e['id'] == v)['nombre'];
+                  }),
+                ),
+                const SizedBox(height: 12),
+                // Date picker
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.calendar_today_rounded, color: Theme.of(context).colorScheme.primary),
+                  title: Text(
+                    DateFormat('dd/MM/yyyy').format(fecha),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                  ),
+                  subtitle: Text(tr(context, 'Fecha', 'Date'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(130), fontSize: 12)),
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: ctx,
+                      initialDate: fecha,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (d != null) setS(() => fecha = d);
+                  },
+                ),
+                const SizedBox(height: 4),
+                _TimeTile(
+                  label: tr(context, 'Entrada', 'Entry'),
+                  time: DateTime(fecha.year, fecha.month, fecha.day, entradaTime.hour, entradaTime.minute),
+                  icon: Icons.login_rounded,
+                  color: const Color(0xFF00C853),
+                  onTap: () async {
+                    final t = await showTimePicker(context: ctx, initialTime: entradaTime, builder: (c, child) => child!);
+                    if (t != null) setS(() => entradaTime = t);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _TimeTile(
+                  label: tr(context, 'Salida', 'Exit'),
+                  time: DateTime(fecha.year, fecha.month, fecha.day, salidaTime.hour, salidaTime.minute),
+                  icon: Icons.logout_rounded,
+                  color: Colors.redAccent,
+                  onTap: () async {
+                    final t = await showTimePicker(context: ctx, initialTime: salidaTime, builder: (c, child) => child!);
+                    if (t != null) setS(() => salidaTime = t);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(tr(context, 'Cancelar', 'Cancel'), style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150))),
+            ),
+            ElevatedButton(
+              onPressed: empleadoSelId == null
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      final entrada = DateTime(fecha.year, fecha.month, fecha.day, entradaTime.hour, entradaTime.minute);
+                      final salida = DateTime(fecha.year, fecha.month, fecha.day, salidaTime.hour, salidaTime.minute);
+                      if (!salida.isAfter(entrada)) {
+                        _showSnack(trStatic(context, 'La salida debe ser después de la entrada', 'Exit must be after entry'), error: true);
+                        return;
+                      }
+                      try {
+                        await _horarioService.crearTurnoManual(empleadoSelId!, entrada, salida);
+                        _showSnack(trStatic(context, 'Turno creado para $empleadoSelNombre', 'Shift created for $empleadoSelNombre'));
+                        await _cargar();
+                      } catch (e) {
+                        _showSnack(trStatic(context, 'Error al crear turno: $e', 'Error creating shift: $e'), error: true);
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(tr(context, 'Crear', 'Create'), style: const TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSnack(String msg, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: _C.primaryLight,
+        backgroundColor: error ? Colors.red.shade700 : Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
+        duration: Duration(seconds: error ? 5 : 3),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageService>(); // rebuild on lang change
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _crearTurno,
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: Text(tr(context, 'Nuevo turno', 'New shift'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+      ),
       body: Stack(
         children: [
           Positioned(
@@ -261,19 +459,21 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${_horarios.length} turno${_horarios.length != 1 ? 's' : ''} esta semana',
-                      style: const TextStyle(
+                      tr(context,
+                        '${_horarios.length} turno${_horarios.length != 1 ? 's' : ''} esta semana',
+                        '${_horarios.length} shift${_horarios.length != 1 ? 's' : ''} this week'),
+                      style: TextStyle(
                         fontSize: 12,
-                        color: _C.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                       ),
                     ),
                   ),
                 ),
                 Expanded(
                   child: _isLoading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(
-                            color: _C.primaryLight,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         )
                       : FadeTransition(
@@ -289,7 +489,7 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
                                   ),
                                   itemCount: _horarios.length,
                                   separatorBuilder: (_, _) =>
-                                      const SizedBox(height: 10),
+                                      SizedBox(height: 10),
                                   itemBuilder: (_, i) => _HorarioTile(
                                     horario: _horarios[i],
                                     onEdit: () => _editarHorario(_horarios[i]),
@@ -297,7 +497,7 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
                                       await _horarioService.eliminarHorario(
                                         _horarios[i]['id'],
                                       );
-                                      _showSnack('Horario eliminado');
+                                      _showSnack(trStatic(context, 'Horario eliminado', 'Schedule deleted'));
                                       await _cargar();
                                     },
                                   ),
@@ -316,59 +516,63 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
     child: Row(
       children: [
-        _ScaleBtn(
-          onPressed: () => Navigator.pop(context),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _C.border.withOpacity(0.4),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 15,
-              color: _C.primaryLight,
+        Visibility(
+          visible: Navigator.canPop(context),
+          maintainSize: true, maintainAnimation: true, maintainState: true,
+          child: _ScaleBtn(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withAlpha(40).withOpacity(0.4),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 15,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ),
         ),
-        const SizedBox(width: 14),
-        const Text(
-          'Gestión de Horarios',
+        SizedBox(width: 14),
+        Text(
+          tr(context, 'Gestión de Horarios', 'Schedule Management'),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const Spacer(),
+        Spacer(),
         _ScaleBtn(
           onPressed: _asignarAutomaticos,
           child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_C.primary, _C.primaryLight],
+              gradient: LinearGradient(
+                colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary],
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: _C.primary.withOpacity(0.35),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
                   blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.auto_awesome_rounded,
               color: Colors.white,
               size: 18,
@@ -383,9 +587,9 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
     margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     decoration: BoxDecoration(
-      color: _C.surface,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _C.border, width: 1.2),
+      border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
     ),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -393,23 +597,23 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
         _NavBtn(
           icon: Icons.chevron_left_rounded,
           onTap: () {
-            setState(() => _semana = _semana.subtract(const Duration(days: 7)));
+            setState(() => _semana = _semana.subtract(Duration(days: 7)));
             _cargar();
           },
         ),
         Column(
           children: [
-            const Text(
-              'Semana del',
-              style: TextStyle(fontSize: 11, color: _C.textSecondary),
+            Text(
+              tr(context, 'Semana del', 'Week of'),
+              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               DateFormat('dd/MM/yyyy').format(_semana),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: _C.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -417,7 +621,7 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
         _NavBtn(
           icon: Icons.chevron_right_rounded,
           onTap: () {
-            setState(() => _semana = _semana.add(const Duration(days: 7)));
+            setState(() => _semana = _semana.add(Duration(days: 7)));
             _cargar();
           },
         ),
@@ -433,29 +637,29 @@ class _GestionHorariosViewState extends State<GestionHorariosView>
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: _C.surface,
+            color: Theme.of(context).colorScheme.surface,
             shape: BoxShape.circle,
-            border: Border.all(color: _C.border, width: 1.5),
+            border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.calendar_today_rounded,
-            color: _C.primaryLight,
+            color: Theme.of(context).colorScheme.primary,
             size: 36,
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Sin horarios',
+        SizedBox(height: 16),
+        Text(
+          tr(context, 'Sin horarios', 'No schedules'),
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Usa el botón ✨ para asignar automáticamente',
-          style: TextStyle(fontSize: 13, color: _C.textSecondary),
+        SizedBox(height: 6),
+        Text(
+          tr(context, 'Usa el botón ✨ para asignar automáticamente', 'Use the ✨ button to auto-assign'),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
         ),
       ],
     ),
@@ -473,14 +677,14 @@ class _NavBtn extends StatelessWidget {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _C.border),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 8, offset: Offset(0, 2)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40)),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
-      child: Icon(icon, color: _C.primaryLight, size: 20),
+      child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
     ),
   );
 }
@@ -497,18 +701,20 @@ class _HorarioTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final emp = horario['empleados'];
     final entrada = DateTime.parse(horario['entrada']);
-    final salida = DateTime.parse(horario['salida']);
+    var salida = DateTime.parse(horario['salida']);
+    // Handle overnight shifts
+    if (salida.isBefore(entrada)) salida = salida.add(const Duration(days: 1));
     final horas = salida.difference(entrada).inMinutes / 60.0;
     final initial = emp != null && (emp['nombre'] as String).isNotEmpty
         ? (emp['nombre'] as String)[0].toUpperCase()
         : '?';
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border, width: 1.4),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 10, offset: Offset(0, 3)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.4),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 10, offset: Offset(0, 3)),
         ],
       ),
       child: Padding(
@@ -519,24 +725,24 @@ class _HorarioTile extends StatelessWidget {
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_C.primary, _C.primaryLight],
+                gradient: LinearGradient(
+                  colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: _C.primary.withOpacity(0.30),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.30),
                     blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    offset: Offset(0, 3),
                   ),
                 ],
               ),
               child: Center(
                 child: Text(
                   initial,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -544,51 +750,51 @@ class _HorarioTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     emp != null ? emp['nombre'] : 'Empleado',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: _C.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.calendar_today_rounded,
                         size: 12,
-                        color: _C.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: 4),
                       Text(
                         DateFormat('dd/MM/yyyy').format(entrada),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: _C.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Row(
                     children: [
                       _TimeChip(
                         time: DateFormat('HH:mm').format(entrada),
                         icon: Icons.login_rounded,
-                        color: _C.success,
+                        color: Color(0xFF00C853),
                       ),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6),
                         child: Icon(
                           Icons.arrow_forward_rounded,
                           size: 14,
-                          color: _C.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                         ),
                       ),
                       _TimeChip(
@@ -596,22 +802,22 @@ class _HorarioTile extends StatelessWidget {
                         icon: Icons.logout_rounded,
                         color: Colors.redAccent,
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: _C.primaryLight.withOpacity(0.08),
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           '${horas.toStringAsFixed(1)}h',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: _C.primaryLight,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),
@@ -624,10 +830,10 @@ class _HorarioTile extends StatelessWidget {
               children: [
                 _Btn(
                   icon: Icons.edit_rounded,
-                  color: _C.primaryLight,
+                  color: Theme.of(context).colorScheme.primary,
                   onTap: onEdit,
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 _Btn(
                   icon: Icons.delete_outline_rounded,
                   color: Colors.redAccent,
@@ -656,7 +862,7 @@ class _TimeChip extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       Icon(icon, size: 11, color: color),
-      const SizedBox(width: 3),
+      SizedBox(width: 3),
       Text(
         time,
         style: TextStyle(
@@ -695,13 +901,13 @@ class _TimeTile extends StatelessWidget {
       child: Row(
         children: [
           Icon(icon, color: color, size: 20),
-          const SizedBox(width: 10),
+          SizedBox(width: 10),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 label,
-                style: const TextStyle(fontSize: 11, color: _C.textSecondary),
+                style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
               ),
               Text(
                 DateFormat('HH:mm').format(time),
@@ -713,7 +919,7 @@ class _TimeTile extends StatelessWidget {
               ),
             ],
           ),
-          const Spacer(),
+          Spacer(),
           Icon(Icons.edit_rounded, color: color.withOpacity(0.60), size: 16),
         ],
       ),
@@ -757,7 +963,7 @@ class _ScaleBtnState extends State<_ScaleBtn>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: Duration(milliseconds: 120),
       lowerBound: 0.94,
       upperBound: 1.0,
       value: 1.0,
@@ -804,7 +1010,7 @@ class _WavePainter extends CustomPainter {
         ..lineTo(0, size.height)
         ..close(),
       Paint()
-        ..color = const Color(0xFFDDEEFF).withOpacity(0.7)
+        ..color = Color(0xFFDDEEFF).withOpacity(0.7)
         ..style = PaintingStyle.fill,
     );
   }

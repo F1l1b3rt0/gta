@@ -1,6 +1,9 @@
 // ignore_for_file: unused_field, deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import '../../services/language_service.dart';
+import '../../services/tr.dart';
 
 class _C {
   static const bg = Color(0xFFFFFFFF);
@@ -17,7 +20,7 @@ class _C {
 }
 
 class EmpleadosView extends StatefulWidget {
-  const EmpleadosView({super.key});
+  EmpleadosView({super.key});
   @override
   State<EmpleadosView> createState() => _EmpleadosViewState();
 }
@@ -36,7 +39,7 @@ class _EmpleadosViewState extends State<EmpleadosView>
     super.initState();
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _cargarEmpleados();
@@ -69,20 +72,20 @@ class _EmpleadosViewState extends State<EmpleadosView>
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Eliminar Empleado',
-          style: TextStyle(fontWeight: FontWeight.w700, color: _C.textPrimary),
+        title: Text(
+          tr(context, 'Eliminar Empleado', 'Delete Employee'),
+          style: TextStyle(fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface),
         ),
         content: Text(
-          '¿Eliminar a $nombre? Esta acción no se puede deshacer.',
-          style: const TextStyle(color: _C.textSecondary),
+          tr(context, '¿Eliminar a $nombre? Esta acción no se puede deshacer.', 'Delete $nombre? This action cannot be undone.'),
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(
-              'Cancelar',
-              style: TextStyle(color: _C.textSecondary),
+            child: Text(
+              tr(context, 'Cancelar', 'Cancel'),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
             ),
           ),
           ElevatedButton(
@@ -93,9 +96,9 @@ class _EmpleadosViewState extends State<EmpleadosView>
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(color: Colors.white),
+            child: Text(
+              tr(context, 'Eliminar', 'Delete'),
+              style: const TextStyle(color: Colors.white),
             ),
           ),
         ],
@@ -106,9 +109,9 @@ class _EmpleadosViewState extends State<EmpleadosView>
       try {
         await Supabase.instance.client.from('empleados').delete().eq('id', id);
         await _cargarEmpleados();
-        _showSnack('Empleado eliminado');
+        _showSnack(trStatic(context, 'Empleado eliminado', 'Employee deleted'));
       } catch (_) {
-        _showSnack('Error al eliminar', isError: true);
+        _showSnack(trStatic(context, 'Error al eliminar', 'Error deleting'), isError: true);
         setState(() => _isLoading = false);
       }
     }
@@ -128,11 +131,11 @@ class _EmpleadosViewState extends State<EmpleadosView>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          title: const Text(
-            'Editar Empleado',
+          title: Text(
+            tr(context, 'Editar Empleado', 'Edit Employee'),
             style: TextStyle(
               fontWeight: FontWeight.w700,
-              color: _C.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           content: SingleChildScrollView(
@@ -141,34 +144,34 @@ class _EmpleadosViewState extends State<EmpleadosView>
               children: [
                 _Field(
                   controller: nombreCtrl,
-                  label: 'Nombre',
+                  label: tr(context, 'Nombre', 'Name'),
                   icon: Icons.person_outline,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _Field(
                   controller: emailCtrl,
                   label: 'Email',
                   icon: Icons.email_outlined,
                   enabled: false,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _Field(
                   controller: salarioCtrl,
-                  label: 'Salario/hora (\$)',
+                  label: tr(context, 'Salario/hora (\$)', 'Hourly wage (\$)'),
                   icon: Icons.attach_money_rounded,
                   keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: rol,
-                  decoration: _fieldDecoration('Rol', Icons.badge_outlined),
-                  dropdownColor: _C.bg,
-                  items: const [
+                  decoration: _fieldDecoration(tr(context, 'Rol', 'Role'), Icons.badge_outlined, context),
+                  dropdownColor: Theme.of(context).colorScheme.surface,
+                  items: [
                     DropdownMenuItem(
                       value: 'empleado',
-                      child: Text('Empleado'),
+                      child: Text(tr(context, 'Empleado', 'Employee')),
                     ),
-                    DropdownMenuItem(value: 'gerente', child: Text('Gerente')),
+                    DropdownMenuItem(value: 'gerente', child: Text(tr(context, 'Gerente', 'Manager'))),
                   ],
                   onChanged: (v) => rol = v!,
                 ),
@@ -178,22 +181,22 @@ class _EmpleadosViewState extends State<EmpleadosView>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text(
-                'Cancelar',
-                style: TextStyle(color: _C.textSecondary),
+              child: Text(
+                tr(context, 'Cancelar', 'Cancel'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
               ),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _C.primaryLight,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              child: const Text(
-                'Guardar',
-                style: TextStyle(color: Colors.white),
+              child: Text(
+                tr(context, 'Guardar', 'Save'),
+                style: const TextStyle(color: Colors.white),
               ),
             ),
           ],
@@ -212,7 +215,7 @@ class _EmpleadosViewState extends State<EmpleadosView>
             })
             .eq('id', emp['id']);
         await _cargarEmpleados();
-        _showSnack('Empleado actualizado');
+        _showSnack(trStatic(context, 'Empleado actualizado', 'Employee updated'));
       } catch (_) {
         setState(() => _isLoading = false);
       }
@@ -222,8 +225,8 @@ class _EmpleadosViewState extends State<EmpleadosView>
   void _showSnack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: isError ? Colors.redAccent : _C.success,
+        content: Text(msg, style: TextStyle(color: Colors.white)),
+        backgroundColor: isError ? Colors.redAccent : Color(0xFF00C853),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -243,8 +246,9 @@ class _EmpleadosViewState extends State<EmpleadosView>
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageService>();
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -270,10 +274,12 @@ class _EmpleadosViewState extends State<EmpleadosView>
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${_filtrados.length} resultado${_filtrados.length != 1 ? 's' : ''}',
-                      style: const TextStyle(
+                      tr(context,
+                        '${_filtrados.length} resultado${_filtrados.length != 1 ? 's' : ''}',
+                        '${_filtrados.length} result${_filtrados.length != 1 ? 's' : ''}'),
+                      style: TextStyle(
                         fontSize: 12,
-                        color: _C.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                       ),
                     ),
                   ),
@@ -282,9 +288,9 @@ class _EmpleadosViewState extends State<EmpleadosView>
                   child: FadeTransition(
                     opacity: _fadeAnim,
                     child: _isLoading
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(
-                              color: _C.primaryLight,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           )
                         : _filtrados.isEmpty
@@ -293,7 +299,7 @@ class _EmpleadosViewState extends State<EmpleadosView>
                             padding: const EdgeInsets.fromLTRB(16, 4, 16, 60),
                             itemCount: _filtrados.length,
                             separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
+                                SizedBox(height: 10),
                             itemBuilder: (_, i) => _EmpleadoTile(
                               empleado: _filtrados[i],
                               onEdit: () => _editarEmpleado(_filtrados[i]),
@@ -317,59 +323,63 @@ class _EmpleadosViewState extends State<EmpleadosView>
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
     child: Row(
       children: [
-        _ScaleBtn(
-          onPressed: () => Navigator.pop(context),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _C.border.withOpacity(0.4),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 15,
-              color: _C.primaryLight,
+        Visibility(
+          visible: Navigator.canPop(context),
+          maintainSize: true, maintainAnimation: true, maintainState: true,
+          child: _ScaleBtn(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withAlpha(40).withOpacity(0.4),
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 15,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
           ),
         ),
-        const SizedBox(width: 14),
-        const Text(
-          'Empleados',
+        SizedBox(width: 14),
+        Text(
+          tr(context, 'Empleados', 'Employees'),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const Spacer(),
+        Spacer(),
         _ScaleBtn(
           onPressed: () {},
           child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_C.primary, _C.primaryLight],
+              gradient: LinearGradient(
+                colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary],
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: _C.primary.withOpacity(0.35),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
                   blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  offset: Offset(0, 3),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.person_add_rounded,
               color: Colors.white,
               size: 18,
@@ -384,38 +394,38 @@ class _EmpleadosViewState extends State<EmpleadosView>
     padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
     child: TextField(
       onChanged: (v) => setState(() => _searchQuery = v),
-      style: const TextStyle(color: _C.textPrimary),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: InputDecoration(
-        hintText: 'Buscar empleado...',
-        hintStyle: const TextStyle(color: _C.textHint, fontSize: 14),
-        prefixIcon: const Icon(
+        hintText: tr(context, 'Buscar empleado...', 'Search employee...'),
+        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(80), fontSize: 14),
+        prefixIcon: Icon(
           Icons.search_rounded,
-          color: _C.primaryLight,
+          color: Theme.of(context).colorScheme.primary,
           size: 20,
         ),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.close_rounded,
-                  color: _C.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                   size: 18,
                 ),
                 onPressed: () => setState(() => _searchQuery = ''),
               )
             : null,
         filled: true,
-        fillColor: _C.surface,
+        fillColor: Theme.of(context).colorScheme.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.border, width: 1.2),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.border, width: 1.2),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _C.primaryLight, width: 1.8),
+          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.8),
         ),
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
       ),
@@ -426,11 +436,11 @@ class _EmpleadosViewState extends State<EmpleadosView>
     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     child: Row(
       children: [
-        _FilterBtn('Todos', 'todos'),
-        const SizedBox(width: 8),
-        _FilterBtn('Empleados', 'empleado'),
-        const SizedBox(width: 8),
-        _FilterBtn('Gerentes', 'gerente'),
+        _FilterBtn(tr(context, 'Todos', 'All'), 'todos'),
+        SizedBox(width: 8),
+        _FilterBtn(tr(context, 'Empleados', 'Employees'), 'empleado'),
+        SizedBox(width: 8),
+        _FilterBtn(tr(context, 'Gerentes', 'Managers'), 'gerente'),
       ],
     ),
   );
@@ -440,21 +450,21 @@ class _EmpleadosViewState extends State<EmpleadosView>
     return GestureDetector(
       onTap: () => setState(() => _filtroRol = value),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: sel ? _C.primaryLight : _C.surface,
+          color: sel ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: sel ? _C.primaryLight : _C.border,
+            color: sel ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primary.withAlpha(40),
             width: 1.3,
           ),
           boxShadow: sel
               ? [
                   BoxShadow(
-                    color: _C.primaryLight.withOpacity(0.25),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.25),
                     blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    offset: Offset(0, 3),
                   ),
                 ]
               : [],
@@ -464,7 +474,7 @@ class _EmpleadosViewState extends State<EmpleadosView>
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: sel ? Colors.white : _C.textSecondary,
+            color: sel ? Colors.white : Theme.of(context).colorScheme.onSurface.withAlpha(150),
           ),
         ),
       ),
@@ -479,29 +489,29 @@ class _EmpleadosViewState extends State<EmpleadosView>
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: _C.surface,
+            color: Theme.of(context).colorScheme.surface,
             shape: BoxShape.circle,
-            border: Border.all(color: _C.border, width: 1.5),
+            border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.group_off_rounded,
-            color: _C.primaryLight,
+            color: Theme.of(context).colorScheme.primary,
             size: 36,
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Sin resultados',
+        SizedBox(height: 16),
+        Text(
+          tr(context, 'Sin resultados', 'No results'),
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'Prueba con otro filtro o búsqueda',
-          style: TextStyle(fontSize: 13, color: _C.textSecondary),
+        SizedBox(height: 6),
+        Text(
+          tr(context, 'Prueba con otro filtro o búsqueda', 'Try a different filter or search'),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
         ),
       ],
     ),
@@ -520,17 +530,17 @@ class _EmpleadoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final esGerente = empleado['rol'] == 'gerente';
-    final roleColor = esGerente ? _C.primaryLight : _C.success;
+    final roleColor = esGerente ? Theme.of(context).colorScheme.primary : Color(0xFF00C853);
     final initial = (empleado['nombre'] as String).isNotEmpty
         ? (empleado['nombre'] as String)[0].toUpperCase()
         : '?';
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border, width: 1.4),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 10, offset: Offset(0, 3)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.4),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 10, offset: Offset(0, 3)),
         ],
       ),
       child: Padding(
@@ -551,14 +561,14 @@ class _EmpleadoTile extends StatelessWidget {
                   BoxShadow(
                     color: roleColor.withOpacity(0.30),
                     blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    offset: Offset(0, 3),
                   ),
                 ],
               ),
               child: Center(
                 child: Text(
                   initial,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
@@ -566,28 +576,28 @@ class _EmpleadoTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     empleado['nombre'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: _C.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     empleado['email'],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: _C.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  SizedBox(height: 5),
                   Row(
                     children: [
                       Container(
@@ -600,7 +610,7 @@ class _EmpleadoTile extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          esGerente ? 'Gerente' : 'Empleado',
+                          esGerente ? tr(context, 'Gerente', 'Manager') : tr(context, 'Empleado', 'Employee'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -608,12 +618,12 @@ class _EmpleadoTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       Text(
                         '\$${empleado['salario_por_hora']}/hr',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: _C.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                         ),
                       ),
                     ],
@@ -625,10 +635,10 @@ class _EmpleadoTile extends StatelessWidget {
               children: [
                 _ActionBtn(
                   icon: Icons.edit_rounded,
-                  color: _C.primaryLight,
+                  color: Theme.of(context).colorScheme.primary,
                   onTap: onEdit,
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 _ActionBtn(
                   icon: Icons.delete_outline_rounded,
                   color: Colors.redAccent,
@@ -667,26 +677,29 @@ class _ActionBtn extends StatelessWidget {
   );
 }
 
-InputDecoration _fieldDecoration(String label, IconData icon) =>
-    InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: _C.textSecondary, fontSize: 14),
-      prefixIcon: Icon(icon, color: _C.primaryLight, size: 20),
-      filled: true,
-      fillColor: _C.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _C.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _C.border, width: 1.2),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: _C.primaryLight, width: 1.8),
-      ),
-    );
+InputDecoration _fieldDecoration(
+    String label, IconData icon, BuildContext context) {
+  final cs = Theme.of(context).colorScheme;
+  return InputDecoration(
+    labelText: label,
+    labelStyle: TextStyle(color: cs.onSurface.withAlpha(150), fontSize: 14),
+    prefixIcon: Icon(icon, color: cs.primary, size: 20),
+    filled: true,
+    fillColor: cs.surface,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: cs.primary.withAlpha(40)),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: cs.primary.withAlpha(40), width: 1.2),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: BorderSide(color: cs.primary, width: 1.8),
+    ),
+  );
+}
 
 class _Field extends StatelessWidget {
   final TextEditingController controller;
@@ -706,8 +719,8 @@ class _Field extends StatelessWidget {
     controller: controller,
     enabled: enabled,
     keyboardType: keyboardType,
-    style: const TextStyle(color: _C.textPrimary),
-    decoration: _fieldDecoration(label, icon),
+    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+    decoration: _fieldDecoration(label, icon, context),
   );
 }
 
@@ -727,7 +740,7 @@ class _ScaleBtnState extends State<_ScaleBtn>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: Duration(milliseconds: 120),
       lowerBound: 0.94,
       upperBound: 1.0,
       value: 1.0,
@@ -774,7 +787,7 @@ class _WavePainter extends CustomPainter {
         ..lineTo(0, size.height)
         ..close(),
       Paint()
-        ..color = const Color(0xFFDDEEFF).withOpacity(0.7)
+        ..color = Color(0xFFDDEEFF).withOpacity(0.7)
         ..style = PaintingStyle.fill,
     );
   }

@@ -1,4 +1,5 @@
 // ignore_for_file: unused_field, curly_braces_in_flow_control_structures, deprecated_member_use
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -100,6 +101,46 @@ class _QrScannerViewState extends State<QrScannerView> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return Scaffold(
+        backgroundColor: _C.bg,
+        appBar: AppBar(
+          backgroundColor: _C.primary,
+          foregroundColor: Colors.white,
+          title: const Text('Escáner QR'),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: _C.primary.withAlpha(15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.qr_code_scanner, size: 72, color: _C.primary),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Escáner no disponible en web',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _C.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Usa la app móvil para registrar asistencia con QR.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: _C.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: _C.bg,
       body: Stack(children: [

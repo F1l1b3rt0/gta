@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'asistente_ia_view.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../services/app_strings.dart';
+import '../../services/notification_service.dart';
 import '../../services/perfil_service.dart';
 
 class ChatView extends StatefulWidget {
@@ -72,9 +74,14 @@ class _ChatViewState extends State<ChatView>
   void _suscribirMensajes() {
     _chatService.suscribirMensajes((nuevoMensaje) {
       if (mounted) {
-        setState(() {
-          _mensajes.add(nuevoMensaje);
-        });
+        setState(() => _mensajes.add(nuevoMensaje));
+        // Notificación solo si el mensaje es de otra persona
+        final esAjeno = nuevoMensaje['empleado_id'] != _empleadoId;
+        if (esAjeno) {
+          final nombre = nuevoMensaje['empleado_nombre'] ?? 'Chat';
+          final texto = nuevoMensaje['mensaje'] ?? '';
+          NotificationService().showChatMessage(nombre, texto);
+        }
       }
     });
   }
@@ -93,8 +100,173 @@ class _ChatViewState extends State<ChatView>
     );
   }
 
+  void _mostrarOpcionesMensaje(Map<String, dynamic> mensaje) {
+    final s = AppStrings.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.edit_rounded, color: Colors.blue.shade600),
+              ),
+              title: Text(s.editMessage,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _mostrarDialogoEditar(mensaje);
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.delete_rounded, color: Colors.red.shade600),
+              ),
+              title: Text(s.deleteMessage,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmarEliminar(mensaje);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarDialogoEditar(Map<String, dynamic> mensaje) {
+    final s = AppStrings.of(context);
+    final controller = TextEditingController(text: mensaje['mensaje'] ?? '');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.editMessage),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLines: null,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(s.cancel),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final nuevoTexto = controller.text.trim();
+              if (nuevoTexto.isEmpty) return;
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              final ok = await _chatService.editarMensaje(
+                  mensaje['id'].toString(), nuevoTexto);
+              if (ok && mounted) {
+                await _cargarMensajes();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(s.messageEdited),
+                    backgroundColor: Colors.green.shade600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: Text(s.save),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmarEliminar(Map<String, dynamic> mensaje) {
+    final s = AppStrings.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(s.deleteMessage),
+        content: Text(s.deleteConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(s.cancel),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              final ok = await _chatService
+                  .eliminarMensaje(mensaje['id'].toString());
+              if (ok && mounted) {
+                await _cargarMensajes();
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(s.messageDeleted),
+                    backgroundColor: Colors.red.shade600,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            child: Text(s.deleteMessage),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Scaffold(
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -144,9 +316,9 @@ class _ChatViewState extends State<ChatView>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      'Chat del Equipo',
-                                      style: TextStyle(
+                                    Text(
+                                      s.teamChat,
+                                      style: const TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w800,
                                         color: Colors.white,
@@ -154,7 +326,7 @@ class _ChatViewState extends State<ChatView>
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${_mensajes.length} mensajes',
+                                      s.messagesCount(_mensajes.length),
                                       style: const TextStyle(
                                         fontSize: 12,
                                         color: Colors.white70,
@@ -163,7 +335,6 @@ class _ChatViewState extends State<ChatView>
                                   ],
                                 ),
                               ),
-                              // Botón Asistente IA
                               GestureDetector(
                                 onTap: () => Navigator.push(
                                   context,
@@ -185,7 +356,6 @@ class _ChatViewState extends State<ChatView>
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              // Botón Refresh
                               GestureDetector(
                                 onTap: _cargarMensajes,
                                 child: Container(
@@ -231,18 +401,18 @@ class _ChatViewState extends State<ChatView>
                                         ),
                                       ),
                                       const SizedBox(height: 16),
-                                      const Text(
-                                        'Sin mensajes',
-                                        style: TextStyle(
+                                      Text(
+                                        s.noMessages,
+                                        style: const TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.w600,
                                           color: Color(0xFF1a1a1a),
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      const Text(
-                                        'Sé el primero en escribir',
-                                        style: TextStyle(
+                                      Text(
+                                        s.beFirst,
+                                        style: const TextStyle(
                                           fontSize: 14,
                                           color: Colors.grey,
                                         ),
@@ -280,10 +450,10 @@ class _ChatViewState extends State<ChatView>
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.surface,
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withAlpha(12),
+                                color: Colors.black.withAlpha(20),
                                 blurRadius: 20,
                                 offset: const Offset(0, -4),
                               ),
@@ -295,7 +465,7 @@ class _ChatViewState extends State<ChatView>
                                 child: TextField(
                                   controller: _mensajeController,
                                   decoration: InputDecoration(
-                                    hintText: 'Escribe un mensaje...',
+                                    hintText: s.typeMessage,
                                     hintStyle: TextStyle(
                                       color: Colors.grey.shade400,
                                     ),
@@ -312,7 +482,8 @@ class _ChatViewState extends State<ChatView>
                                         width: 2,
                                       ),
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(
                                       horizontal: 20,
                                       vertical: 12,
                                     ),
@@ -336,7 +507,8 @@ class _ChatViewState extends State<ChatView>
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.blue.shade300.withAlpha(50),
+                                      color:
+                                          Colors.blue.shade300.withAlpha(50),
                                       blurRadius: 12,
                                       offset: const Offset(0, 4),
                                     ),
@@ -371,11 +543,35 @@ class _ChatViewState extends State<ChatView>
   }
 
   Widget _buildMensajeTile(Map<String, dynamic> mensaje, bool esMiMensaje) {
-    return Align(
-      alignment: esMiMensaje ? Alignment.centerRight : Alignment.centerLeft,
+    final avatarUrl = mensaje['empleado_avatar'] ?? '';
+    final nombre = mensaje['empleado_nombre'] ?? 'Empleado';
+    final inicial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'E';
+
+    Widget avatar = CircleAvatar(
+      radius: 16,
+      backgroundColor:
+          esMiMensaje ? Colors.blue.shade100 : Colors.grey.shade200,
+      backgroundImage:
+          avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+      child: avatarUrl.isEmpty
+          ? Text(
+              inicial,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: esMiMensaje
+                    ? Colors.blue.shade700
+                    : Colors.grey.shade700,
+              ),
+            )
+          : null,
+    );
+
+    Widget bubble = GestureDetector(
+      onLongPress: esMiMensaje ? () => _mostrarOpcionesMensaje(mensaje) : null,
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.65,
         ),
         child: Container(
           decoration: BoxDecoration(
@@ -384,18 +580,29 @@ class _ChatViewState extends State<ChatView>
                     colors: [Colors.blue.shade400, Colors.blue.shade600],
                   )
                 : null,
-            color: esMiMensaje ? null : Colors.grey.shade100,
+            color: esMiMensaje
+                ? null
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
+            border: (!esMiMensaje &&
+                    Theme.of(context).brightness == Brightness.dark)
+                ? Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha(40))
+                : null,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(8),
+                color: Colors.black.withAlpha(10),
                 blurRadius: 8,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               crossAxisAlignment: esMiMensaje
                   ? CrossAxisAlignment.end
@@ -405,13 +612,14 @@ class _ChatViewState extends State<ChatView>
                   Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Text(
-                      mensaje['empleado_nombre'] ?? 'Empleado',
+                      nombre,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: esMiMensaje
-                            ? Colors.white70
-                            : Colors.grey.shade600,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(160),
                       ),
                     ),
                   ),
@@ -419,7 +627,9 @@ class _ChatViewState extends State<ChatView>
                   mensaje['mensaje'] ?? '',
                   style: TextStyle(
                     fontSize: 14,
-                    color: esMiMensaje ? Colors.white : const Color(0xFF1a1a1a),
+                    color: esMiMensaje
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -428,7 +638,12 @@ class _ChatViewState extends State<ChatView>
                   _formatTime(DateTime.parse(mensaje['created_at'])),
                   style: TextStyle(
                     fontSize: 10,
-                    color: esMiMensaje ? Colors.white60 : Colors.grey.shade500,
+                    color: esMiMensaje
+                        ? Colors.white60
+                        : Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withAlpha(120),
                   ),
                 ),
               ],
@@ -437,6 +652,42 @@ class _ChatViewState extends State<ChatView>
         ),
       ),
     );
+
+    if (esMiMensaje) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Botón de opciones visible (editar/borrar)
+          GestureDetector(
+            onTap: () => _mostrarOpcionesMensaje(mensaje),
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.more_horiz,
+                  size: 16, color: Colors.grey.shade600),
+            ),
+          ),
+          const SizedBox(width: 6),
+          bubble,
+          const SizedBox(width: 8),
+          avatar,
+        ],
+      );
+    } else {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          avatar,
+          const SizedBox(width: 8),
+          bubble,
+        ],
+      );
+    }
   }
 
   String _formatTime(DateTime time) {

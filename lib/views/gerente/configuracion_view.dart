@@ -1,138 +1,11 @@
 // ignore_for_file: unused_field, dead_code, avoid_print
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/language_service.dart';
+import '../../services/theme_notifier.dart';
 
-// ─── Paleta de colores (misma que login/register/gerente_home) ────────────────
-class _C {
-  static const bg = Color(0xFFFFFFFF);
-  static const surface = Color(0xFFF4F8FF);
-  static const surfaceCard = Color(0xFFFFFFFF);
-
-  static const primary = Color(0xFF0F2DA6);
-  static const primaryMid = Color(0xFF1A3ABF);
-  static const primaryLight = Color(0xFF1A4FD8);
-  static const accent = Color(0xFF2196F3);
-
-  static const textPrimary = Color(0xFF1A2A4A);
-  static const textSecondary = Color(0xFF5A7DBA);
-  static const textHint = Color(0xFFAABFE0);
-
-  static const border = Color(0xFFC8DEFF);
-  static const divider = Color(0xFFDDEEFF);
-  static const shadowSm = Color(0x201A4FD8);
-}
-
-// ─── Servicio de temas ────────────────────────────────────────────────────────
-class ThemeService {
-  static const String _themeKey = 'selected_theme';
-
-  static final Map<String, ThemeData> themes = {
-    'claro': _buildLightTheme(),
-    'oscuro': _buildDarkTheme(),
-    'gta': _buildGTATheme(),
-    'personalizado': _buildCustomTheme(),
-    'lite': _buildLiteTheme(),
-  };
-
-  static ThemeData _buildLightTheme() => ThemeData(
-    brightness: Brightness.light,
-    primaryColor: const Color(0xFF1A4FD8),
-    colorScheme: const ColorScheme.light(
-      primary: Color(0xFF1A4FD8),
-      secondary: Color(0xFF2196F3),
-      surface: Color(0xFFF4F8FF),
-    ),
-    scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      color: Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    ),
-  );
-
-  static ThemeData _buildDarkTheme() => ThemeData(
-    brightness: Brightness.dark,
-    primaryColor: const Color(0xFF4D96FF),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF4D96FF),
-      secondary: Color(0xFF1A6FE8),
-      surface: Color(0xFF1A1A2E),
-    ),
-    scaffoldBackgroundColor: const Color(0xFF0F0F1A),
-    cardTheme: CardThemeData(
-      color: const Color(0xFF1A1A2E),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    ),
-  );
-
-  static ThemeData _buildGTATheme() => ThemeData(
-    brightness: Brightness.dark,
-    primaryColor: const Color(0xFF00FFD1),
-    colorScheme: const ColorScheme.dark(
-      primary: Color(0xFF00FFD1),
-      secondary: Color(0xFF00B4D8),
-      surface: Color(0xFF0A0A1A),
-      error: Color(0xFFFF006E),
-    ),
-    scaffoldBackgroundColor: const Color(0xFF05050F),
-    cardTheme: CardThemeData(
-      color: const Color(0xFF0A0A1A),
-      elevation: 5,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: Color(0xFF00FFD1), width: 0.5),
-      ),
-    ),
-  );
-
-  static ThemeData _buildCustomTheme() => ThemeData(
-    brightness: Brightness.light,
-    primaryColor: const Color(0xFF6366F1),
-    colorScheme: const ColorScheme.light(
-      primary: Color(0xFF6366F1),
-      secondary: Color(0xFF8B5CF6),
-      surface: Color(0xFFF9FAFB),
-    ),
-    scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      color: Colors.white,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-    ),
-  );
-
-  static ThemeData _buildLiteTheme() => ThemeData(
-    brightness: Brightness.light,
-    primaryColor: Colors.white,
-    colorScheme: const ColorScheme.light(
-      primary: Color(0xFF000000),
-      secondary: Color(0xFF3B82F6),
-      surface: Color(0xFFF8FAFC),
-    ),
-    scaffoldBackgroundColor: Colors.white,
-    cardTheme: CardThemeData(
-      color: Colors.white,
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-    ),
-  );
-
-  static Future<void> saveTheme(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_themeKey, name);
-  }
-
-  static Future<String> loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_themeKey) ?? 'claro';
-  }
-}
 
 // ─── Pantalla de Configuración ────────────────────────────────────────────────
 class ConfiguracionView extends StatefulWidget {
@@ -151,11 +24,13 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
   bool _qrUbicacion = true;
   double _radioUbicacion = 100;
   String _horarioCorte = '23:59';
+  String _claveRegistro = '';
   bool _isLoading = true;
   bool _isSaving = false;
 
   // Temas
   String _currentTheme = 'claro';
+  String _idioma = 'es';
 
   late AnimationController _fadeCtrl;
   late Animation<double> _fadeAnim;
@@ -175,16 +50,6 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
     'gta': {
       'name': 'GTA',
       'icon': Icons.sports_esports,
-      'color': Color(0xFF00FFD1),
-    },
-    'personalizado': {
-      'name': 'Custom',
-      'icon': Icons.color_lens,
-      'color': Color(0xFF6366F1),
-    },
-    'lite': {
-      'name': 'Lite',
-      'icon': Icons.auto_awesome,
       'color': Color(0xFF3B82F6),
     },
   };
@@ -210,34 +75,60 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
   // ─── Carga / guarda ───────────────────────────────────────────────────────
 
   Future<void> _cargarTema() async {
-    final t = await ThemeService.loadTheme();
-    if (mounted) setState(() => _currentTheme = t);
+    await Future.microtask(() {});
+    if (mounted) {
+      setState(() {
+        _currentTheme = Provider.of<ThemeNotifier>(context, listen: false).themeName;
+        _idioma = Provider.of<LanguageService>(context, listen: false).languageCode;
+      });
+    }
+  }
+
+  Future<void> _cambiarIdioma(String code) async {
+    setState(() => _idioma = code);
+    await Provider.of<LanguageService>(context, listen: false).setLanguage(code);
+    if (!mounted) return;
+    _showSnack(code == 'es' ? '🇪🇸 Idioma: Español' : '🇺🇸 Language: English', success: true);
   }
 
   Future<void> _cambiarTema(String key) async {
     setState(() => _currentTheme = key);
-    await ThemeService.saveTheme(key);
+    await Provider.of<ThemeNotifier>(context, listen: false).setTheme(key);
     if (!mounted) return;
     _showSnack(
-      'Tema cambiado a ${(_themes[key]!['name'] as String)}',
+      _t('Tema: ', 'Theme: ') + (_themes[key]!['name'] as String),
       success: true,
     );
   }
 
   Future<void> _cargarConfiguracion() async {
     try {
-      final cfg = await Supabase.instance.client
-          .from('configuracion')
-          .select()
-          .maybeSingle();
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      final gerenteRow = userId != null
+          ? await Supabase.instance.client
+              .from('gerentes')
+              .select('id')
+              .eq('user_id', userId)
+              .maybeSingle()
+          : null;
+      final gerenteId = gerenteRow?['id'];
+
+      final cfg = gerenteId != null
+          ? await Supabase.instance.client
+              .from('configuracion')
+              .select()
+              .eq('gerente_id', gerenteId)
+              .maybeSingle()
+          : await Supabase.instance.client
+              .from('configuracion')
+              .select()
+              .maybeSingle();
       if (cfg != null && mounted) {
         setState(() {
           _maxHorasDiarias = cfg['max_horas_diarias'] ?? 8;
           _maxHorasSemanales = cfg['max_horas_semanales'] ?? 40;
-          _notificacionesPush = cfg['notificaciones_push'] ?? true;
-          _qrUbicacion = cfg['qr_ubicacion_requerida'] ?? true;
-          _radioUbicacion = (cfg['radio_ubicacion'] ?? 100).toDouble();
-          _horarioCorte = cfg['horario_corte'] ?? '23:59';
+          _horarioCorte = cfg['hora_corte'] ?? '23:59';
+          _claveRegistro = cfg['clave_registro'] ?? '';
         });
       }
     } catch (e) {
@@ -250,19 +141,39 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
     if (_isSaving) return;
     setState(() => _isSaving = true);
     try {
-      final existing = await Supabase.instance.client
-          .from('configuracion')
-          .select()
+      // Get gerente record id via auth user
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) {
+        _showSnack(_t('No hay sesión activa', 'No active session'), success: false);
+        return;
+      }
+      final gerenteRow = await Supabase.instance.client
+          .from('gerentes')
+          .select('id')
+          .eq('user_id', userId)
           .maybeSingle();
+      final gerenteId = gerenteRow?['id'];
+
+      final existing = gerenteId != null
+          ? await Supabase.instance.client
+              .from('configuracion')
+              .select('id')
+              .eq('gerente_id', gerenteId)
+              .maybeSingle()
+          : await Supabase.instance.client
+              .from('configuracion')
+              .select('id')
+              .maybeSingle();
+
       final data = {
         'max_horas_diarias': _maxHorasDiarias,
         'max_horas_semanales': _maxHorasSemanales,
-        'notificaciones_push': _notificacionesPush,
-        'qr_ubicacion_requerida': _qrUbicacion,
-        'radio_ubicacion': _radioUbicacion,
-        'horario_corte': _horarioCorte,
+        'hora_corte': _horarioCorte,
         'updated_at': DateTime.now().toIso8601String(),
+        if (gerenteId != null) 'gerente_id': gerenteId,
+        if (_claveRegistro.isNotEmpty) 'clave_registro': _claveRegistro,
       };
+
       if (existing != null) {
         await Supabase.instance.client
             .from('configuracion')
@@ -271,13 +182,17 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
       } else {
         await Supabase.instance.client.from('configuracion').insert(data);
       }
-      _showSnack('Configuración guardada', success: true);
+      _showSnack(_t('Configuración guardada', 'Settings saved'), success: true);
     } catch (e) {
-      _showSnack('Error al guardar', success: false);
+      _showSnack('Error: $e', success: false);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
   }
+
+  // ─── i18n helper ─────────────────────────────────────────────────────────
+  bool get _en => _idioma == 'en';
+  String _t(String es, String en) => _en ? en : es;
 
   void _showSnack(String msg, {required bool success}) {
     if (!mounted) return;
@@ -296,8 +211,11 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
 
   @override
   Widget build(BuildContext context) {
+    // Watch language so UI rebuilds when language changes
+    final currentLang = context.watch<LanguageService>().languageCode;
+    if (_idioma != currentLang) _idioma = currentLang;
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Ola inferior
@@ -307,7 +225,9 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
             right: 0,
             child: CustomPaint(
               size: Size(MediaQuery.of(context).size.width, 60),
-              painter: _WavePainter(),
+              painter: _WavePainter(
+                color: Theme.of(context).colorScheme.primary.withAlpha(25),
+              ),
             ),
           ),
           SafeArea(
@@ -316,9 +236,9 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                 _buildTopBar(),
                 Expanded(
                   child: _isLoading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(
-                            color: _C.primaryLight,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         )
                       : FadeTransition(
@@ -331,28 +251,28 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                                 const SizedBox(height: 16),
                                 _buildSection(
                                   icon: Icons.access_time_rounded,
-                                  title: 'Límites de Horas',
-                                  iconColor: _C.primaryLight,
+                                  title: _t('Límites de Horas', 'Hour Limits'),
+                                  iconColor: Theme.of(context).colorScheme.primary,
                                   children: [
                                     _SliderTile(
-                                      label: 'Horas máximas por día',
+                                      label: _t('Horas máximas por día', 'Max hours per day'),
                                       value: _maxHorasDiarias.toDouble(),
                                       min: 4,
                                       max: 12,
-                                      suffix: 'h/día',
-                                      color: _C.primaryLight,
+                                      suffix: _t('h/día', 'h/day'),
+                                      color: Theme.of(context).colorScheme.primary,
                                       onChanged: (v) => setState(
                                         () => _maxHorasDiarias = v.toInt(),
                                       ),
                                     ),
                                     _buildDivider(),
                                     _SliderTile(
-                                      label: 'Horas máximas por semana',
+                                      label: _t('Horas máximas por semana', 'Max hours per week'),
                                       value: _maxHorasSemanales.toDouble(),
                                       min: 20,
                                       max: 60,
-                                      suffix: 'h/sem',
-                                      color: _C.primaryLight,
+                                      suffix: _t('h/sem', 'h/wk'),
+                                      color: Theme.of(context).colorScheme.primary,
                                       onChanged: (v) => setState(
                                         () => _maxHorasSemanales = v.toInt(),
                                       ),
@@ -362,22 +282,21 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                                 const SizedBox(height: 16),
                                 _buildSection(
                                   icon: Icons.qr_code_scanner_rounded,
-                                  title: 'Configuración QR',
+                                  title: _t('Configuración QR', 'QR Settings'),
                                   iconColor: const Color(0xFF00BFAE),
                                   children: [
                                     _SwitchTile(
-                                      label: 'Requerir ubicación al marcar',
-                                      sub:
-                                          'Valida la posición GPS del empleado',
+                                      label: _t('Requerir ubicación al marcar', 'Require location on check-in'),
+                                      sub: _t('Valida la posición GPS del empleado', 'Validates employee GPS position'),
                                       value: _qrUbicacion,
-                                      activeColor: _C.primaryLight,
+                                      activeColor: Theme.of(context).colorScheme.primary,
                                       onChanged: (v) =>
                                           setState(() => _qrUbicacion = v),
                                     ),
                                     if (_qrUbicacion) ...[
                                       _buildDivider(),
                                       _SliderTile(
-                                        label: 'Radio permitido (metros)',
+                                        label: _t('Radio permitido (metros)', 'Allowed radius (meters)'),
                                         value: _radioUbicacion,
                                         min: 50,
                                         max: 500,
@@ -391,27 +310,28 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                                 ),
                                 const SizedBox(height: 16),
                                 _buildSection(
-                                  icon: Icons.notifications_active_rounded,
-                                  title: 'Notificaciones',
-                                  iconColor: const Color(0xFFFF6D00),
-                                  children: [
-                                    _SwitchTile(
-                                      label: 'Notificaciones Push',
-                                      sub: 'Recibir alertas en el dispositivo',
-                                      value: _notificacionesPush,
-                                      activeColor: _C.primaryLight,
-                                      onChanged: (v) => setState(
-                                        () => _notificacionesPush = v,
-                                      ),
-                                    ),
-                                  ],
+                                  icon: Icons.schedule_rounded,
+                                  title: _t('Horario de Corte', 'Cut-off Time'),
+                                  iconColor: const Color(0xFF7C4DFF),
+                                  children: [_buildHorarioCorte()],
                                 ),
                                 const SizedBox(height: 16),
                                 _buildSection(
-                                  icon: Icons.schedule_rounded,
-                                  title: 'Horario de Corte',
-                                  iconColor: const Color(0xFF7C4DFF),
-                                  children: [_buildHorarioCorte()],
+                                  icon: Icons.vpn_key_rounded,
+                                  title: _t('Clave de Registro Gerente', 'Manager Registration Key'),
+                                  iconColor: const Color(0xFFE91E63),
+                                  children: [_buildClaveRegistro()],
+                                ),
+                                const SizedBox(height: 16),
+                                _buildSection(
+                                  icon: Icons.language_rounded,
+                                  title: 'Idioma / Language',
+                                  iconColor: const Color(0xFF10B981),
+                                  children: [
+                                    _buildLangOption('es', 'Español', '🇪🇸'),
+                                    _buildDivider(),
+                                    _buildLangOption('en', 'English', '🇺🇸'),
+                                  ],
                                 ),
                                 const SizedBox(height: 28),
                                 _buildSaveButton(),
@@ -442,31 +362,27 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: _C.border.withOpacity(0.4),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(60),
+                  width: 1.5,
+                ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 15,
-                color: _C.primaryLight,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
           ),
           const SizedBox(width: 14),
-          const Text(
-            'Configuración',
+          Text(
+            _t('Configuración', 'Settings'),
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: _C.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
           const Spacer(),
@@ -477,13 +393,11 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [_C.primary, _C.primaryLight],
-                ),
+                color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: _C.primary.withOpacity(0.35),
+                    color: Theme.of(context).colorScheme.primary.withAlpha(90),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
@@ -515,24 +429,23 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
   Widget _buildThemeSection() {
     return _buildSection(
       icon: Icons.palette_rounded,
-      title: 'Apariencia',
-      iconColor: _C.primaryLight,
+      title: _t('Apariencia', 'Appearance'),
+      iconColor: Theme.of(context).colorScheme.primary,
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Selecciona un tema',
+              Text(
+                _t('Selecciona un tema', 'Select a theme'),
                 style: TextStyle(
                   fontSize: 13,
-                  color: _C.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                   fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 12),
-              // Grid de temas 3 columnas
               GridView.count(
                 crossAxisCount: 3,
                 shrinkWrap: true,
@@ -541,6 +454,7 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                 mainAxisSpacing: 10,
                 childAspectRatio: 1.1,
                 children: _themes.entries.map((e) {
+                  final cs = Theme.of(context).colorScheme;
                   final isSelected = _currentTheme == e.key;
                   final themeColor = e.value['color'] as Color;
                   return _ScaleButton(
@@ -549,17 +463,17 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                       duration: const Duration(milliseconds: 200),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? _C.primaryLight.withOpacity(0.08)
-                            : _C.surface,
+                            ? cs.primary.withAlpha(20)
+                            : cs.surface,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: isSelected ? _C.primaryLight : _C.border,
+                          color: isSelected ? cs.primary : cs.primary.withAlpha(50),
                           width: isSelected ? 2.0 : 1.4,
                         ),
                         boxShadow: isSelected
                             ? [
                                 BoxShadow(
-                                  color: _C.primaryLight.withOpacity(0.18),
+                                  color: cs.primary.withAlpha(45),
                                   blurRadius: 10,
                                   offset: const Offset(0, 3),
                                 ),
@@ -571,7 +485,7 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                         children: [
                           Icon(
                             e.value['icon'] as IconData,
-                            color: isSelected ? _C.primaryLight : themeColor,
+                            color: isSelected ? cs.primary : themeColor,
                             size: 26,
                           ),
                           const SizedBox(height: 6),
@@ -583,8 +497,8 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                                   ? FontWeight.w700
                                   : FontWeight.w400,
                               color: isSelected
-                                  ? _C.primaryLight
-                                  : _C.textSecondary,
+                                  ? cs.primary
+                                  : cs.onSurface.withAlpha(150),
                             ),
                           ),
                         ],
@@ -608,13 +522,22 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
     required Color iconColor,
     required List<Widget> children,
   }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: _C.surfaceCard,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _C.border, width: 1.4),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 12, offset: Offset(0, 4)),
+        border: Border.all(
+          color: isDark ? cs.primary.withAlpha(40) : cs.primary.withAlpha(30),
+          width: 1.4,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: cs.primary.withAlpha(isDark ? 15 : 20),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -627,7 +550,7 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.10),
+                    color: iconColor.withAlpha(25),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: iconColor, size: 18),
@@ -635,16 +558,16 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                 const SizedBox(width: 10),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: _C.textPrimary,
+                    color: cs.onSurface,
                   ),
                 ),
               ],
             ),
           ),
-          Container(height: 1, color: _C.divider),
+          Container(height: 1, color: cs.onSurface.withAlpha(20)),
           ...children,
         ],
       ),
@@ -654,8 +577,38 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
   Widget _buildDivider() => Container(
     margin: const EdgeInsets.symmetric(horizontal: 16),
     height: 1,
-    color: _C.divider,
+    color: Theme.of(context).colorScheme.onSurface.withAlpha(20),
   );
+
+  Widget _buildLangOption(String code, String label, String flag) {
+    final selected = _idioma == code;
+    final cs = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () => _cambiarIdioma(code),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Text(flag, style: const TextStyle(fontSize: 22)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                  color: selected ? cs.primary : cs.onSurface,
+                ),
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle_rounded, color: cs.primary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
 
   // ─── Horario de corte ─────────────────────────────────────────────────────
 
@@ -668,7 +621,7 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFF7C4DFF).withOpacity(0.10),
+              color: const Color(0xFF7C4DFF).withAlpha(25),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
@@ -682,20 +635,20 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Hora de cierre',
+                Text(
+                  _t('Hora de cierre', 'Cut-off time'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _C.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   _horarioCorte,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: _C.primaryLight,
+                    color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -710,14 +663,7 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
                   hour: int.parse(_horarioCorte.split(':')[0]),
                   minute: int.parse(_horarioCorte.split(':')[1]),
                 ),
-                builder: (ctx, child) => Theme(
-                  data: Theme.of(ctx).copyWith(
-                    colorScheme: const ColorScheme.light(
-                      primary: _C.primaryLight,
-                    ),
-                  ),
-                  child: child!,
-                ),
+                builder: (ctx, child) => child!,
               );
               if (t != null && mounted) {
                 setState(
@@ -730,15 +676,18 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: _C.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border, width: 1.4),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(60),
+                  width: 1.4,
+                ),
               ),
-              child: const Text(
-                'Cambiar',
+              child: Text(
+                _t('Cambiar', 'Change'),
                 style: TextStyle(
                   fontSize: 12,
-                  color: _C.primaryLight,
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -749,48 +698,86 @@ class _ConfiguracionViewState extends State<ConfiguracionView>
     );
   }
 
+  // ─── Clave de registro ────────────────────────────────────────────────────
+
+  Widget _buildClaveRegistro() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _t('Contraseña requerida para registrarse como gerente', 'Password required to register as manager'),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextFormField(
+            initialValue: _claveRegistro,
+            onChanged: (v) => setState(() => _claveRegistro = v),
+            decoration: InputDecoration(
+              hintText: _t('Ej: MI-EMPRESA-2024', 'Ex: MY-COMPANY-2024'),
+              hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(80)),
+              prefixIcon: Icon(Icons.lock_outline_rounded, size: 18, color: const Color(0xFFE91E63)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary.withAlpha(60)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE91E63), width: 1.5),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              filled: true,
+              fillColor: Theme.of(context).colorScheme.surface,
+            ),
+            style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurface),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _t('Deja vacío para deshabilitar registro como gerente', 'Leave empty to disable manager registration'),
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurface.withAlpha(100),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── Botón guardar ────────────────────────────────────────────────────────
 
   Widget _buildSaveButton() {
-    return _ScaleButton(
-      onPressed: _isSaving ? null : _guardar,
-      child: Container(
-        width: double.infinity,
-        height: 56,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: _C.primary,
-          boxShadow: [
-            BoxShadow(
-              color: _C.primary.withOpacity(0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _isSaving ? null : _guardar,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          disabledBackgroundColor: Theme.of(context).colorScheme.primary.withAlpha(100),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          elevation: 4,
+          shadowColor: Theme.of(context).colorScheme.primary.withAlpha(90),
         ),
         child: _isSaving
-            ? const Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                ),
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               )
-            : const Row(
+            : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.save_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 10),
+                  const Icon(Icons.save_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 10),
                   Text(
-                    'Guardar Configuración',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
+                    _t('Guardar Configuración', 'Save Settings'),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                 ],
               ),
@@ -829,9 +816,9 @@ class _SliderTile extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: _C.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurface.withAlpha(160),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -841,7 +828,7 @@ class _SliderTile extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.10),
+                  color: color.withAlpha(25),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -859,9 +846,9 @@ class _SliderTile extends StatelessWidget {
           SliderTheme(
             data: SliderThemeData(
               activeTrackColor: color,
-              inactiveTrackColor: color.withOpacity(0.15),
+              inactiveTrackColor: color.withAlpha(38),
               thumbColor: color,
-              overlayColor: color.withOpacity(0.15),
+              overlayColor: color.withAlpha(38),
               trackHeight: 4,
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
             ),
@@ -907,16 +894,19 @@ class _SwitchTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _C.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   sub,
-                  style: const TextStyle(fontSize: 12, color: _C.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
+                  ),
                 ),
               ],
             ),
@@ -925,9 +915,7 @@ class _SwitchTile extends StatelessWidget {
             value: value,
             onChanged: onChanged,
             activeThumbColor: activeColor,
-            activeTrackColor: activeColor.withOpacity(0.25),
-            inactiveThumbColor: _C.textHint,
-            inactiveTrackColor: _C.border,
+            activeTrackColor: activeColor.withAlpha(65),
           ),
         ],
       ),
@@ -991,6 +979,9 @@ class _ScaleButtonState extends State<_ScaleButton>
 // ─── Painter: Ola inferior ────────────────────────────────────────────────────
 
 class _WavePainter extends CustomPainter {
+  final Color color;
+  const _WavePainter({required this.color});
+
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawPath(
@@ -1008,11 +999,11 @@ class _WavePainter extends CustomPainter {
         ..lineTo(0, size.height)
         ..close(),
       Paint()
-        ..color = const Color(0xFFDDEEFF).withOpacity(0.7)
+        ..color = color
         ..style = PaintingStyle.fill,
     );
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter _) => false;
+  bool shouldRepaint(covariant _WavePainter old) => old.color != color;
 }

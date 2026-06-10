@@ -85,8 +85,8 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
   void _showSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: _C.success,
+        content: Text(msg, style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF00C853),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -97,7 +97,7 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -115,9 +115,9 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
                 _buildTopBar(),
                 Expanded(
                   child: _isLoading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(
-                            color: _C.primaryLight,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         )
                       : FadeTransition(
@@ -153,20 +153,20 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'REPORTES INDIVIDUALES',
                                       style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
-                                        color: _C.textSecondary,
+                                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                                         letterSpacing: 2,
                                       ),
                                     ),
                                     Text(
                                       '${_empleados.length} empleados',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: _C.textSecondary,
+                                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                                       ),
                                     ),
                                   ],
@@ -182,7 +182,7 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
                                   ),
                                   itemCount: _empleados.length,
                                   separatorBuilder: (_, _) =>
-                                      const SizedBox(height: 10),
+                                      SizedBox(height: 10),
                                   itemBuilder: (_, i) {
                                     final emp = _empleados[i];
                                     return _EmpleadoNominaTile(
@@ -217,29 +217,29 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.5),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: _C.border.withOpacity(0.4),
+                  color: Theme.of(context).colorScheme.primary.withAlpha(40).withOpacity(0.4),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back_ios_new_rounded,
               size: 15,
-              color: _C.primaryLight,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),
-        const SizedBox(width: 14),
-        const Text(
+        SizedBox(width: 14),
+        Text(
           'Reportes de Nómina',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ],
@@ -249,9 +249,9 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
   Widget _buildMesSelector() => Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     decoration: BoxDecoration(
-      color: _C.surface,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _C.border, width: 1.2),
+      border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
     ),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -263,17 +263,17 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
         ),
         Column(
           children: [
-            const Text(
+            Text(
               'Período seleccionado',
-              style: TextStyle(fontSize: 11, color: _C.textSecondary),
+              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               DateFormat('MMMM yyyy').format(_mes),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: _C.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -293,11 +293,11 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        color: _C.primary,
+        color: Theme.of(context).colorScheme.primary,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: _C.primary.withOpacity(0.35),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -307,7 +307,7 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _exportLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
@@ -315,13 +315,13 @@ class _ReportesNominaViewState extends State<ReportesNominaView>
                     strokeWidth: 2,
                   ),
                 )
-              : const Icon(
+              : Icon(
                   Icons.download_rounded,
                   color: Colors.white,
                   size: 20,
                 ),
-          const SizedBox(width: 10),
-          const Text(
+          SizedBox(width: 10),
+          Text(
             'Exportar Reporte General',
             style: TextStyle(
               color: Colors.white,
@@ -348,12 +348,12 @@ class _NavBtn extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _C.border),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 8, offset: Offset(0, 2)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40)),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
-      child: Icon(icon, color: _C.primaryLight, size: 20),
+      child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
     ),
   );
 }
@@ -378,15 +378,15 @@ class _EmpleadoNominaTile extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         decoration: BoxDecoration(
           color: isGenerating
-              ? _C.primaryLight.withOpacity(0.04)
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.04)
               : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isGenerating ? _C.primaryLight.withOpacity(0.30) : _C.border,
+            color: isGenerating ? Theme.of(context).colorScheme.primary.withOpacity(0.30) : Theme.of(context).colorScheme.primary.withAlpha(40),
             width: 1.4,
           ),
-          boxShadow: const [
-            BoxShadow(color: _C.shadowSm, blurRadius: 10, offset: Offset(0, 3)),
+          boxShadow: [
+            BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 10, offset: Offset(0, 3)),
           ],
         ),
         child: Padding(
@@ -398,14 +398,14 @@ class _EmpleadoNominaTile extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [_C.success, _C.success.withOpacity(0.70)],
+                    colors: [const Color(0xFF00C853), const Color(0xFF00C853).withOpacity(0.70)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: _C.success.withOpacity(0.30),
+                      color: const Color(0xFF00C853).withOpacity(0.30),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -414,7 +414,7 @@ class _EmpleadoNominaTile extends StatelessWidget {
                 child: Center(
                   child: Text(
                     initial,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -422,32 +422,32 @@ class _EmpleadoNominaTile extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 14),
+              SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       empleado['nombre'],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: _C.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.attach_money_rounded,
                           size: 14,
-                          color: _C.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                         ),
                         Text(
                           '\$${empleado['salario_por_hora']}/hora',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: _C.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                           ),
                         ),
                       ],
@@ -456,11 +456,11 @@ class _EmpleadoNominaTile extends StatelessWidget {
                 ),
               ),
               isGenerating
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        color: _C.primaryLight,
+                        color: Theme.of(context).colorScheme.primary,
                         strokeWidth: 2,
                       ),
                     )
@@ -470,19 +470,19 @@ class _EmpleadoNominaTile extends StatelessWidget {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: _C.success.withOpacity(0.10),
+                        color: const Color(0xFF00C853).withOpacity(0.10),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: _C.success.withOpacity(0.25),
+                          color: const Color(0xFF00C853).withOpacity(0.25),
                           width: 1.2,
                         ),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.receipt_long_rounded,
-                            color: _C.success,
+                            color: const Color(0xFF00C853),
                             size: 16,
                           ),
                           SizedBox(width: 4),
@@ -491,7 +491,7 @@ class _EmpleadoNominaTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: _C.success,
+                              color: const Color(0xFF00C853),
                             ),
                           ),
                         ],

@@ -3,21 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeService {
   static const String _themeKey = 'selected_theme';
-  
-  // Lista de temas disponibles
+
   static final Map<String, ThemeData> themes = {
     'claro': _buildLightTheme(),
     'oscuro': _buildDarkTheme(),
     'gta': _buildGTATheme(),
-    'personalizado': _buildCustomTheme(),
-    'lite': _buildLiteTheme(),
   };
-  
-  // Tema Claro (default)
+
+  // ── Claro ──────────────────────────────────────────────────────────────────
   static ThemeData _buildLightTheme() {
     return ThemeData(
       brightness: Brightness.light,
-      primaryColor: const Color(0xFF1A6FE8),
+      useMaterial3: true,
       colorScheme: const ColorScheme.light(
         primary: Color(0xFF1A6FE8),
         secondary: Color(0xFF4D96FF),
@@ -45,12 +42,12 @@ class ThemeService {
       ),
     );
   }
-  
-  // Tema Oscuro
+
+  // ── Oscuro ─────────────────────────────────────────────────────────────────
   static ThemeData _buildDarkTheme() {
     return ThemeData(
       brightness: Brightness.dark,
-      primaryColor: const Color(0xFF0D1B3E),
+      useMaterial3: true,
       colorScheme: const ColorScheme.dark(
         primary: Color(0xFF4D96FF),
         secondary: Color(0xFF1A6FE8),
@@ -78,123 +75,95 @@ class ThemeService {
       ),
     );
   }
-  
-  // Tema GTA (neones y azules)
+
+  // ── GTA (azul oscuro con detalles eléctricos) ──────────────────────────────
   static ThemeData _buildGTATheme() {
+    const bgDeep    = Color(0xFF060D1F);   // fondo principal muy oscuro
+    const bgCard    = Color(0xFF0D1830);   // fondo de tarjetas
+    const bgSurface = Color(0xFF111E35);   // superficies secundarias
+    const accent    = Color(0xFF3B82F6);   // azul eléctrico
+    const accentBright = Color(0xFF60A5FA); // azul brillante para textos
+    const border    = Color(0xFF1E3A5F);   // borde sutil azul
+
     return ThemeData(
       brightness: Brightness.dark,
-      primaryColor: const Color(0xFF00FFD1),
+      useMaterial3: true,
       colorScheme: const ColorScheme.dark(
-        primary: Color(0xFF00FFD1),
-        secondary: Color(0xFF00B4D8),
-        surface: Color(0xFF0A0A1A),
-        error: Color(0xFFFF006E),
+        primary: accent,
+        secondary: accentBright,
+        surface: bgCard,
+        error: Color(0xFFEF4444),
       ),
-      scaffoldBackgroundColor: const Color(0xFF05050F),
+      scaffoldBackgroundColor: bgDeep,
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0A0A1A),
-        foregroundColor: Color(0xFF00FFD1),
+        backgroundColor: bgCard,
+        foregroundColor: accentBright,
         elevation: 0,
       ),
       cardTheme: CardThemeData(
-        color: const Color(0xFF0A0A1A),
-        elevation: 5,
-        shadowColor: const Color(0xFF00FFD1),
+        color: bgCard,
+        elevation: 4,
+        shadowColor: accent.withAlpha(60),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Color(0xFF00FFD1), width: 0.5),
+          side: const BorderSide(color: border, width: 1),
         ),
       ),
+      drawerTheme: const DrawerThemeData(backgroundColor: bgCard),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF0A0A1A),
+        fillColor: bgSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF00FFD1)),
+          borderSide: const BorderSide(color: border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF00B4D8)),
+          borderSide: const BorderSide(color: border),
         ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: accent, width: 2),
+        ),
+        hintStyle: TextStyle(color: accentBright.withAlpha(100)),
       ),
       textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: Color(0xFF00FFD1)),
-        bodyMedium: TextStyle(color: Color(0xFF00B4D8)),
+        bodyLarge: TextStyle(color: Colors.white),
+        bodyMedium: TextStyle(color: Color(0xFFCBD5E1)),
+        titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        titleMedium: TextStyle(color: accentBright),
       ),
-    );
-  }
-  
-  // Tema Personalizado (editable por el usuario)
-  static ThemeData _buildCustomTheme() {
-    return ThemeData(
-      brightness: Brightness.light,
-      primaryColor: const Color(0xFF6366F1),
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFF6366F1),
-        secondary: Color(0xFF8B5CF6),
-        surface: Color(0xFFF9FAFB),
-        error: Colors.red,
+      iconTheme: const IconThemeData(color: accentBright),
+      dividerColor: border,
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected) ? accent : Colors.grey),
+        trackColor: WidgetStateProperty.resolveWith(
+            (s) => s.contains(WidgetState.selected)
+                ? accent.withAlpha(80)
+                : Colors.grey.withAlpha(60)),
       ),
-      scaffoldBackgroundColor: const Color(0xFFFFFFFF),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF6366F1),
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        color: Colors.white,
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-    );
-  }
-  
-  // Tema Lite (minimalista)
-  static ThemeData _buildLiteTheme() {
-    return ThemeData(
-      brightness: Brightness.light,
-      primaryColor: Colors.white,
-      colorScheme: const ColorScheme.light(
-        primary: Color(0xFF000000),
-        secondary: Color(0xFF3B82F6),
-        surface: Color(0xFFF8FAFC),
-        error: Colors.red,
-      ),
-      scaffoldBackgroundColor: const Color(0xFFFFFFFF),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 1,
-        shadowColor: Colors.transparent,
-      ),
-      cardTheme: CardThemeData(
-        color: Colors.white,
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: Colors.grey.shade200),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.grey.shade50,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.shade300),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: accent,
+          foregroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
   }
-  
-  // Guardar tema seleccionado
+
   static Future<void> saveTheme(String themeName) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeKey, themeName);
   }
-  
-  // Cargar tema guardado
+
   static Future<String> loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_themeKey) ?? 'claro';
+    final saved = prefs.getString(_themeKey) ?? 'claro';
+    // Si tenía 'lite' o 'personalizado' guardado, vuelve a 'claro'
+    if (!themes.containsKey(saved)) return 'claro';
+    return saved;
   }
 }

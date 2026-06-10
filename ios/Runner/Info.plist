@@ -4,10 +4,27 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Se necesita la cámara para escanear códigos QR de asistencia.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Se necesita acceso a tus fotos para actualizar tu foto de perfil.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Se necesita permiso para guardar imágenes en tu galería.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Se necesita el micrófono para el escáner de cámara.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Se necesita tu ubicación para registrar la asistencia desde el lugar de trabajo.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Se necesita tu ubicación para registrar la asistencia desde el lugar de trabajo.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Getea</string>
+	<string>GTA</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +32,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>getea</string>
+	<string>GTA</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

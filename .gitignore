@@ -44,3 +44,21 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Environment / secrets — nunca subir al repo
+.env
+*.env
+
+# iOS generated files — se regeneran con flutter pub get
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/.symlinks/
+
+# Android keystore — nunca subir
+*.jks
+*.keystore
+android/key.properties
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift

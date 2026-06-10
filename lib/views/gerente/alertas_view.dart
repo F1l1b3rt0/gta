@@ -1,6 +1,9 @@
 // ignore_for_file: unused_field, deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
+import '../../services/language_service.dart';
+import '../../services/tr.dart';
 
 class _C {
   static const bg = Color(0xFFFFFFFF);
@@ -15,7 +18,7 @@ class _C {
 }
 
 class AlertasView extends StatefulWidget {
-  const AlertasView({super.key});
+  AlertasView({super.key});
   @override
   State<AlertasView> createState() => _AlertasViewState();
 }
@@ -33,7 +36,7 @@ class _AlertasViewState extends State<AlertasView>
     super.initState();
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _cargarAlertas();
@@ -75,15 +78,16 @@ class _AlertasViewState extends State<AlertasView>
     try {
       await Supabase.instance.client.from('alertas').delete().eq('id', id);
       await _cargarAlertas();
-      if (mounted) _showSnack('Alerta eliminada', color: Colors.redAccent);
+      if (mounted) _showSnack(trStatic(context, 'Alerta eliminada', 'Alert deleted'), color: Colors.redAccent);
     } catch (_) {}
   }
 
-  void _showSnack(String msg, {Color color = _C.primaryLight}) {
+  void _showSnack(String msg, {Color? color}) {
+    final snackColor = color ?? Theme.of(context).colorScheme.primary;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: color,
+        content: Text(msg, style: TextStyle(color: Colors.white)),
+        backgroundColor: snackColor,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -113,21 +117,22 @@ class _AlertasViewState extends State<AlertasView>
   Color _colorForTipo(String tipo) {
     switch (tipo) {
       case 'horas_extra':
-        return const Color(0xFFFF9800);
+        return Color(0xFFFF9800);
       case 'limite_semanal':
-        return const Color(0xFFE53935);
+        return Color(0xFFE53935);
       case 'nuevo_horario':
-        return const Color(0xFF00C853);
+        return Color(0xFF00C853);
       default:
-        return _C.primaryLight;
+        return Theme.of(context).colorScheme.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    context.watch<LanguageService>();
     final noLeidas = _alertas.where((a) => a['leida'] == false).length;
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -148,9 +153,9 @@ class _AlertasViewState extends State<AlertasView>
                   child: FadeTransition(
                     opacity: _fadeAnim,
                     child: _isLoading
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(
-                              color: _C.primaryLight,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           )
                         : _alertasFiltradas.isEmpty
@@ -159,7 +164,7 @@ class _AlertasViewState extends State<AlertasView>
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
                             itemCount: _alertasFiltradas.length,
                             separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
+                                SizedBox(height: 10),
                             itemBuilder: (_, i) {
                               final a = _alertasFiltradas[i];
                               return _AlertaTile(
@@ -186,70 +191,74 @@ class _AlertasViewState extends State<AlertasView>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
         children: [
-          _ScaleBtn(
-            onPressed: () => Navigator.pop(context),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: _C.border.withOpacity(0.4),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 15,
-                color: _C.primaryLight,
+          Visibility(
+            visible: Navigator.canPop(context),
+            maintainSize: true, maintainAnimation: true, maintainState: true,
+            child: _ScaleBtn(
+              onPressed: () => Navigator.pop(context),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withAlpha(40).withOpacity(0.4),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 15,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Alertas',
+              Text(
+                tr(context, 'Alertas', 'Alerts'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: _C.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               if (noLeidas > 0)
                 Text(
-                  '$noLeidas sin leer',
-                  style: const TextStyle(fontSize: 12, color: _C.textSecondary),
+                  tr(context, '$noLeidas sin leer', '$noLeidas unread'),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
                 ),
             ],
           ),
-          const Spacer(),
+          Spacer(),
           _ScaleBtn(
             onPressed: _cargarAlertas,
             child: Container(
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _C.surface,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _C.border, width: 1.2),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
                 boxShadow: [
                   BoxShadow(
-                    color: _C.shadowSm,
+                    color: Theme.of(context).colorScheme.primary.withAlpha(15),
                     blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.refresh_rounded,
-                color: _C.primaryLight,
+                color: Theme.of(context).colorScheme.primary,
                 size: 18,
               ),
             ),
@@ -265,13 +274,13 @@ class _AlertasViewState extends State<AlertasView>
       child: Row(
         children: [
           _FilterChip(
-            label: 'Todas',
+            label: tr(context, 'Todas', 'All'),
             selected: _filtro == 'todas',
             onTap: () => setState(() => _filtro = 'todas'),
           ),
-          const SizedBox(width: 8),
+          SizedBox(width: 8),
           _FilterChip(
-            label: 'No leídas',
+            label: tr(context, 'No leídas', 'Unread'),
             selected: _filtro == 'no_leidas',
             onTap: () => setState(() => _filtro = 'no_leidas'),
           ),
@@ -289,29 +298,29 @@ class _AlertasViewState extends State<AlertasView>
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: _C.surface,
+              color: Theme.of(context).colorScheme.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: _C.border, width: 1.5),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.notifications_off_rounded,
-              color: _C.primaryLight,
+              color: Theme.of(context).colorScheme.primary,
               size: 36,
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Sin alertas',
+          SizedBox(height: 16),
+          Text(
+            tr(context, 'Sin alertas', 'No alerts'),
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: _C.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'No hay alertas en este filtro',
-            style: TextStyle(fontSize: 13, color: _C.textSecondary),
+          SizedBox(height: 6),
+          Text(
+            tr(context, 'No hay alertas en este filtro', 'No alerts for this filter'),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
           ),
         ],
       ),
@@ -342,14 +351,14 @@ class _AlertaTile extends StatelessWidget {
         color: leida ? Colors.white : color.withOpacity(0.04),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: leida ? const Color(0xFFC8DEFF) : color.withOpacity(0.28),
+          color: leida ? Color(0xFFC8DEFF) : color.withOpacity(0.28),
           width: 1.4,
         ),
         boxShadow: [
           BoxShadow(
-            color: leida ? const Color(0x121A4FD8) : color.withOpacity(0.10),
+            color: leida ? Color(0x121A4FD8) : color.withOpacity(0.10),
             blurRadius: 10,
-            offset: const Offset(0, 3),
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -367,7 +376,7 @@ class _AlertaTile extends StatelessWidget {
               ),
               child: Icon(icon, color: color, size: 22),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,25 +386,25 @@ class _AlertaTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: leida ? FontWeight.w500 : FontWeight.w700,
-                      color: _C.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   if (empleado != null) ...[
-                    const SizedBox(height: 3),
+                    SizedBox(height: 3),
                     Text(
                       empleado['nombre'] ?? '',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: _C.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     '${fecha.day}/${fecha.month}/${fecha.year}  ${fecha.hour.toString().padLeft(2, '0')}:${fecha.minute.toString().padLeft(2, '0')}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: _C.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                     ),
                   ),
                 ],
@@ -406,10 +415,10 @@ class _AlertaTile extends StatelessWidget {
                 if (!leida)
                   _ActionIcon(
                     icon: Icons.done_all_rounded,
-                    color: const Color(0xFF00C853),
+                    color: Color(0xFF00C853),
                     onTap: onRead,
                   ),
-                if (!leida) const SizedBox(height: 4),
+                if (!leida) SizedBox(height: 4),
                 _ActionIcon(
                   icon: Icons.delete_outline_rounded,
                   color: Colors.redAccent,
@@ -461,21 +470,21 @@ class _FilterChip extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: Duration(milliseconds: 200),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: selected ? _C.primaryLight : _C.surface,
+        color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: selected ? _C.primaryLight : _C.border,
+          color: selected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.primary.withAlpha(40),
           width: 1.4,
         ),
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: _C.primaryLight.withOpacity(0.25),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.25),
                   blurRadius: 10,
-                  offset: const Offset(0, 3),
+                  offset: Offset(0, 3),
                 ),
               ]
             : [],
@@ -485,7 +494,7 @@ class _FilterChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w600,
-          color: selected ? Colors.white : _C.textSecondary,
+          color: selected ? Colors.white : Theme.of(context).colorScheme.onSurface.withAlpha(150),
         ),
       ),
     ),
@@ -508,7 +517,7 @@ class _ScaleBtnState extends State<_ScaleBtn>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: Duration(milliseconds: 120),
       lowerBound: 0.94,
       upperBound: 1.0,
       value: 1.0,
@@ -555,7 +564,7 @@ class _WavePainter extends CustomPainter {
         ..lineTo(0, size.height)
         ..close(),
       Paint()
-        ..color = const Color(0xFFDDEEFF).withOpacity(0.7)
+        ..color = Color(0xFFDDEEFF).withOpacity(0.7)
         ..style = PaintingStyle.fill,
     );
   }

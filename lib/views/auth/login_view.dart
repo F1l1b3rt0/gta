@@ -206,28 +206,12 @@ class _LoginContentState extends State<_LoginContent>
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       child: Row(
         children: [
-          Container(
-            width: 38, height: 38,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFF1A4FD8), Color(0xFF2196F3)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: ClipOval(
-              child: Image.asset(
-                'assets/icon/icon.png',
-                width: 38, height: 38,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Center(
-                  child: Text('G',
-                    style: TextStyle(color: Colors.white,
-                        fontSize: 16, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ),
+          CircleAvatar(
+            radius: 21,
+            backgroundColor: const Color(0xFF1A4FD8),
+            backgroundImage: const AssetImage('assets/icon/icon.png'),
+            onBackgroundImageError: (_, __) {},
+            child: null,
           ),
           const SizedBox(width: 10),
           const Text(

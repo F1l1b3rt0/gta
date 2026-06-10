@@ -1,8 +1,11 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../services/theme_service.dart';
+import '../../services/app_strings.dart';
+import '../../services/language_service.dart';
+import '../../services/theme_notifier.dart';
 import '../auth/login_view.dart';
 
 class ConfiguracionEmpleadoView extends StatefulWidget {
@@ -43,9 +46,12 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
 
   Future<void> _cargarConfiguracion() async {
     try {
-      final tema = await ThemeService.loadTheme();
+      if (!mounted) return;
+      final themeNotifier = Provider.of<ThemeNotifier>(context, listen: false);
+      final langService = Provider.of<LanguageService>(context, listen: false);
       setState(() {
-        _tema = tema;
+        _tema = themeNotifier.themeName;
+        _idioma = langService.languageCode;
         _isLoading = false;
       });
     } catch (e) {
@@ -53,19 +59,16 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
     }
   }
 
-  Future<void> _cambiarTema(String nuevoTema) async {
+  Future<void> _cambiarTema(String nuevoTema, AppStrings s) async {
     setState(() => _tema = nuevoTema);
-    await ThemeService.saveTheme(nuevoTema);
-
+    await Provider.of<ThemeNotifier>(context, listen: false).setTheme(nuevoTema);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('✓ Tema cambiado correctamente'),
+          content: Text(s.themeChanged),
           backgroundColor: Colors.green.shade600,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -74,12 +77,12 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.of(context);
     return Scaffold(
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
-                // Fondo con gradiente
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -100,7 +103,7 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                     child: SingleChildScrollView(
                       child: Column(
                         children: [
-                          // ========== HEADER ==========
+                          // HEADER
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
                             child: Row(
@@ -121,9 +124,9 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                                   ),
                                 ),
                                 const SizedBox(width: 14),
-                                const Text(
-                                  'Configuración',
-                                  style: TextStyle(
+                                Text(
+                                  s.configuration,
+                                  style: const TextStyle(
                                     fontSize: 24,
                                     fontWeight: FontWeight.w800,
                                     color: Colors.white,
@@ -132,171 +135,135 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                               ],
                             ),
                           ),
-                          // ========== CONTENIDO ==========
+                          // CONTENIDO
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               children: [
-                                // ========== SECCIÓN APARIENCIA ==========
+                                // APARIENCIA
                                 _buildSectionCard(
-                                  title: 'Apariencia',
+                                  title: s.appearance,
                                   icon: Icons.palette_rounded,
                                   color: Colors.purple,
                                   children: [
                                     _buildOptionTile(
                                       icon: Icons.brightness_6,
-                                      title: 'Tema',
-                                      subtitle: _getTemaLabel(_tema),
+                                      title: s.theme,
+                                      subtitle: _getTemaLabel(_tema, s),
                                       child: DropdownButton<String>(
                                         value: _tema,
                                         underline: const SizedBox(),
-                                        dropdownColor: Colors.white,
-                                        items: const [
+                                        dropdownColor: Theme.of(context).colorScheme.surface,
+                                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                                        items: [
                                           DropdownMenuItem(
                                             value: 'claro',
-                                            child: Text('Claro'),
+                                            child: Text(s.themeLight),
                                           ),
                                           DropdownMenuItem(
                                             value: 'oscuro',
-                                            child: Text('Oscuro'),
+                                            child: Text(s.themeDark),
                                           ),
-                                          DropdownMenuItem(
+                                          const DropdownMenuItem(
                                             value: 'gta',
                                             child: Text('GTA'),
                                           ),
-                                          DropdownMenuItem(
-                                            value: 'lite',
-                                            child: Text('Lite'),
-                                          ),
                                         ],
                                         onChanged: (value) {
-                                          if (value != null) {
-                                            _cambiarTema(value);
-                                          }
+                                          if (value != null) _cambiarTema(value, s);
                                         },
                                       ),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                // ========== SECCIÓN NOTIFICACIONES ==========
+                                // NOTIFICACIONES
                                 _buildSectionCard(
-                                  title: 'Notificaciones',
+                                  title: s.notifications,
                                   icon: Icons.notifications_rounded,
                                   color: Colors.orange,
                                   children: [
                                     _buildSwitchTile(
                                       icon: Icons.notifications_active,
-                                      title: 'Notificaciones Push',
-                                      subtitle: 'Recibir alertas del sistema',
+                                      title: s.pushNotifications,
+                                      subtitle: s.pushSubtitle,
                                       value: _notificacionesPush,
-                                      onChanged: (value) {
-                                        setState(
-                                          () => _notificacionesPush = value,
-                                        );
-                                        _guardarPreferencia(
-                                          'notificaciones',
-                                          value,
-                                        );
-                                      },
+                                      onChanged: (v) => setState(() => _notificacionesPush = v),
                                     ),
                                     const Divider(height: 16),
                                     _buildSwitchTile(
                                       icon: Icons.volume_up_rounded,
-                                      title: 'Sonido',
-                                      subtitle:
-                                          'Reproducir sonido en notificaciones',
+                                      title: s.sound,
+                                      subtitle: s.soundSubtitle,
                                       value: _sonido,
-                                      onChanged: (value) {
-                                        setState(() => _sonido = value);
-                                        _guardarPreferencia('sonido', value);
-                                      },
+                                      onChanged: (v) => setState(() => _sonido = v),
                                     ),
                                     const Divider(height: 16),
                                     _buildSwitchTile(
                                       icon: Icons.vibration,
-                                      title: 'Vibración',
-                                      subtitle:
-                                          'Vibrar al recibir notificaciones',
+                                      title: s.vibration,
+                                      subtitle: s.vibrationSubtitle,
                                       value: _vibrar,
-                                      onChanged: (value) {
-                                        setState(() => _vibrar = value);
-                                        _guardarPreferencia('vibrar', value);
-                                      },
+                                      onChanged: (v) => setState(() => _vibrar = v),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                // ========== SECCIÓN PREFERENCIAS ==========
+                                // PREFERENCIAS
                                 _buildSectionCard(
-                                  title: 'Preferencias',
+                                  title: s.preferences,
                                   icon: Icons.language_rounded,
                                   color: Colors.green,
                                   children: [
                                     _buildOptionTile(
                                       icon: Icons.language,
-                                      title: 'Idioma',
-                                      subtitle: _idioma == 'es'
-                                          ? 'Español'
-                                          : 'English',
-                                      child: Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                      onTap: () => _mostrarDialogoIdioma(),
+                                      title: s.language,
+                                      subtitle: s.currentLangLabel,
+                                      child: Icon(Icons.chevron_right,
+                                          color: Colors.grey.shade400),
+                                      onTap: () => _mostrarDialogoIdioma(s),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                // ========== SECCIÓN INFORMACIÓN ==========
+                                // INFORMACIÓN
                                 _buildSectionCard(
-                                  title: 'Información',
+                                  title: s.information,
                                   icon: Icons.info_rounded,
                                   color: Colors.blue,
                                   children: [
                                     _buildOptionTile(
                                       icon: Icons.info_outline,
-                                      title: 'Acerca de GTA',
-                                      subtitle: 'Versión 1.0.0',
-                                      child: Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                      onTap: () => _mostrarAcercaDe(),
+                                      title: s.aboutGta,
+                                      subtitle: '${s.version} 1.0.0',
+                                      child: Icon(Icons.chevron_right,
+                                          color: Colors.grey.shade400),
+                                      onTap: () => _mostrarAcercaDe(s),
                                     ),
                                     const Divider(height: 16),
                                     _buildOptionTile(
                                       icon: Icons.privacy_tip_rounded,
-                                      title: 'Política de Privacidad',
-                                      subtitle: 'Ver términos y condiciones',
-                                      child: Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.grey.shade400,
-                                      ),
-                                      onTap: () => _mostrarPrivacidad(),
+                                      title: s.privacyPolicy,
+                                      subtitle: s.privacySubtitle,
+                                      child: Icon(Icons.chevron_right,
+                                          color: Colors.grey.shade400),
+                                      onTap: () => _mostrarPrivacidad(s),
                                     ),
                                   ],
                                 ),
                                 const SizedBox(height: 30),
-                                // ========== BOTÓN CERRAR SESIÓN ==========
                                 SizedBox(
                                   width: double.infinity,
                                   child: ElevatedButton.icon(
-                                    onPressed: _cerrarSesion,
-                                    icon: const Icon(
-                                      Icons.logout_rounded,
-                                      size: 20,
-                                    ),
-                                    label: const Text('Cerrar Sesión'),
+                                    onPressed: () => _cerrarSesion(s),
+                                    icon: const Icon(Icons.logout_rounded, size: 20),
+                                    label: Text(s.logout),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.red.shade600,
                                       foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 14,
-                                      ),
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
+                                          borderRadius: BorderRadius.circular(14)),
                                       elevation: 4,
                                     ),
                                   ),
@@ -321,13 +288,18 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
     required Color color,
     required List<Widget> children,
   }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(20),
+        border: isDark
+            ? Border.all(color: cs.primary.withAlpha(40), width: 1)
+            : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(12),
+            color: Colors.black.withAlpha(isDark ? 40 : 12),
             blurRadius: 20,
             offset: const Offset(0, 6),
           ),
@@ -343,7 +315,7 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withAlpha(25),
+                    color: color.withAlpha(isDark ? 40 : 25),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 24),
@@ -351,10 +323,10 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                 const SizedBox(width: 12),
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1a1a1a),
+                    color: cs.onSurface,
                   ),
                 ),
               ],
@@ -374,6 +346,10 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
     Widget? child,
     VoidCallback? onTap,
   }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconBg = isDark ? cs.primary.withAlpha(30) : Colors.grey.shade100;
+    final iconColor = isDark ? cs.secondary : Colors.grey.shade700;
     return GestureDetector(
       onTap: onTap,
       child: Row(
@@ -381,29 +357,26 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: iconBg,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: Colors.grey.shade700, size: 20),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1a1a1a),
-                  ),
-                ),
+                Text(title,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface)),
                 const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurface.withAlpha(140))),
               ],
             ),
           ),
@@ -420,34 +393,35 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final iconBg = isDark ? cs.primary.withAlpha(30) : Colors.grey.shade100;
+    final iconColor = isDark ? cs.secondary : Colors.grey.shade700;
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: iconBg,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.grey.shade700, size: 20),
+          child: Icon(icon, color: iconColor, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1a1a1a),
-                ),
-              ),
+              Text(title,
+                  style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface)),
               const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
+              Text(subtitle,
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurface.withAlpha(140))),
             ],
           ),
         ),
@@ -461,31 +435,21 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
     );
   }
 
-  String _getTemaLabel(String tema) {
+  String _getTemaLabel(String tema, AppStrings s) {
     switch (tema) {
-      case 'claro':
-        return 'Claro';
-      case 'oscuro':
-        return 'Oscuro';
-      case 'gta':
-        return 'GTA';
-      case 'lite':
-        return 'Lite';
-      default:
-        return 'Claro';
+      case 'claro': return s.themeLight;
+      case 'oscuro': return s.themeDark;
+      case 'gta': return 'GTA';
+      default: return s.themeLight;
     }
   }
 
-  void _guardarPreferencia(String key, bool value) {
-    // Aquí se puede guardar en SharedPreferences o en la base de datos
-    debugPrint('Guardando $key: $value');
-  }
-
-  void _mostrarDialogoIdioma() {
+  void _mostrarDialogoIdioma(AppStrings s) {
+    final langService = Provider.of<LanguageService>(context, listen: false);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Seleccionar Idioma'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(s.selectLanguage),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -495,24 +459,50 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                 value: 'es',
                 groupValue: _idioma,
                 activeColor: Colors.green,
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() => _idioma = value!);
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
+                  await langService.setLanguage('es');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(s.languageChanged('Español')),
+                        backgroundColor: Colors.green.shade600,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 },
               ),
-              title: const Text('Español'),
+              title: Text(s.spanish),
             ),
             ListTile(
               leading: Radio<String>(
                 value: 'en',
                 groupValue: _idioma,
                 activeColor: Colors.green,
-                onChanged: (value) {
+                onChanged: (value) async {
                   setState(() => _idioma = value!);
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
+                  await langService.setLanguage('en');
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(s.languageChanged('English')),
+                        backgroundColor: Colors.green.shade600,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 },
               ),
-              title: const Text('English'),
+              title: Text(s.english),
             ),
           ],
         ),
@@ -520,12 +510,12 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
     );
   }
 
-  void _mostrarAcercaDe() {
+  void _mostrarAcercaDe(AppStrings s) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Acerca de GTA'),
+        title: Text(s.aboutGta),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -535,25 +525,19 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
                 color: Colors.green.shade50,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: Icon(
-                Icons.qr_code,
-                size: 60,
-                color: Colors.green.shade600,
-              ),
+              child: Icon(Icons.qr_code, size: 60, color: Colors.green.shade600),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'GTA',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
+            const Text('GTA',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Gestión de Turnos y Asistencia',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             const SizedBox(height: 16),
-            const Text('Versión 1.0.0'),
+            Text('${s.version} 1.0.0'),
             const SizedBox(height: 8),
             const Text('© 2024 GTA App'),
           ],
@@ -561,56 +545,52 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text(s.close),
           ),
         ],
       ),
     );
   }
 
-  void _mostrarPrivacidad() {
+  void _mostrarPrivacidad(AppStrings s) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Política de Privacidad'),
-        content: const SingleChildScrollView(
+        title: Text(s.privacyPolicy),
+        content: SingleChildScrollView(
           child: Text(
-            'GTA se compromete a proteger tu privacidad. Tus datos personales '
-            'son utilizados únicamente para la gestión de horarios y asistencia. '
-            'No compartimos tu información con terceros sin tu consentimiento.\n\n'
-            'Tus datos están protegidos con los más altos estándares de seguridad.',
-            style: TextStyle(fontSize: 13, height: 1.6),
+            s.privacyText,
+            style: const TextStyle(fontSize: 13, height: 1.6),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+            child: Text(s.close),
           ),
         ],
       ),
     );
   }
 
-  void _cerrarSesion() async {
+  void _cerrarSesion(AppStrings s) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Cerrar Sesión'),
-        content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
+        title: Text(s.logoutTitle),
+        content: Text(s.logoutBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(s.cancel),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red.shade600,
-            ),
-            child: const Text('Salir'),
+                backgroundColor: Colors.red.shade600),
+            child: Text(s.exit),
           ),
         ],
       ),
@@ -628,10 +608,8 @@ class _ConfiguracionEmpleadoViewState extends State<ConfiguracionEmpleadoView>
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error al cerrar sesión: $e'),
-              backgroundColor: Colors.red.shade600,
-            ),
+            SnackBar(content: Text('Error: $e'),
+                backgroundColor: Colors.red.shade600),
           );
         }
       }

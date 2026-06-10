@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geolocator/geolocator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
@@ -8,6 +9,7 @@ class QRService {
   
   // Verificar ubicación del empleado
   Future<bool> verificarUbicacion() async {
+    if (kIsWeb) return true; // En web no se puede verificar GPS, se permite
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return false;
     

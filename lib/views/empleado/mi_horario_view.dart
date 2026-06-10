@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../services/app_strings.dart';
 
 class _C {
   static const bg = Color(0xFFFFFFFF);
@@ -26,6 +27,7 @@ class MiHorarioView extends StatefulWidget {
 class _MiHorarioViewState extends State<MiHorarioView>
     with SingleTickerProviderStateMixin {
   List<Map<String, dynamic>> _horarios = [];
+  Map<DateTime, String> _asistencias = {}; // date -> estado
   bool _isLoading = true;
   DateTime _semana = DateTime.now();
   late AnimationController _fadeCtrl;
@@ -53,17 +55,73 @@ class _MiHorarioViewState extends State<MiHorarioView>
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
-      final inicio = _semana.subtract(Duration(days: _semana.weekday - 1));
+      // Compute Monday of current week at midnight
+      final lunes = _semana.subtract(Duration(days: _semana.weekday - 1));
+      final inicio = DateTime(lunes.year, lunes.month, lunes.day);
       final fin = inicio.add(const Duration(days: 7));
-      final r = await Supabase.instance.client
+      // Try with auth user id first (empleados.id == auth.uid)
+      var r = await Supabase.instance.client
           .from('turnos')
           .select()
           .eq('empleado_id', user.id)
           .gte('entrada', inicio.toIso8601String())
-          .lte('entrada', fin.toIso8601String())
+          .lt('entrada', fin.toIso8601String())
           .order('entrada');
+      // If no results, try looking up empleado by user_id field
+      if (r.isEmpty) {
+        final emp = await Supabase.instance.client
+            .from('empleados')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        if (emp != null) {
+          r = await Supabase.instance.client
+              .from('turnos')
+              .select()
+              .eq('empleado_id', emp['id'])
+              .gte('entrada', inicio.toIso8601String())
+              .lt('entrada', fin.toIso8601String())
+              .order('entrada');
+        }
+      }
+      // Load asistencias for the same week
+      String? empId;
+      try {
+        final user2 = Supabase.instance.client.auth.currentUser;
+        if (user2 != null) {
+          // First try direct id match
+          final empDirect = await Supabase.instance.client
+              .from('empleados').select('id').eq('id', user2.id).maybeSingle();
+          if (empDirect != null) {
+            empId = empDirect['id'] as String?;
+          } else {
+            final empByUser = await Supabase.instance.client
+                .from('empleados').select('id').eq('user_id', user2.id).maybeSingle();
+            empId = empByUser?['id'] as String?;
+          }
+        }
+      } catch (_) {}
+
+      Map<DateTime, String> asistMap = {};
+      if (empId != null) {
+        try {
+          final asistRes = await Supabase.instance.client
+              .from('asistencias')
+              .select('fecha, estado')
+              .eq('empleado_id', empId)
+              .gte('fecha', DateFormat('yyyy-MM-dd').format(inicio))
+              .lt('fecha', DateFormat('yyyy-MM-dd').format(fin));
+          for (final a in asistRes as List) {
+            final fecha = DateTime.parse(a['fecha'] as String);
+            final d = DateTime(fecha.year, fecha.month, fecha.day);
+            asistMap[d] = a['estado'] as String? ?? 'presente';
+          }
+        } catch (_) {}
+      }
+
       setState(() {
         _horarios = List<Map<String, dynamic>>.from(r);
+        _asistencias = asistMap;
         _isLoading = false;
       });
     } catch (_) {
@@ -85,7 +143,7 @@ class _MiHorarioViewState extends State<MiHorarioView>
   Widget build(BuildContext context) {
     final inicioSemana = _semana.subtract(Duration(days: _semana.weekday - 1));
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -110,19 +168,19 @@ class _MiHorarioViewState extends State<MiHorarioView>
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '${_horarios.length} turno${_horarios.length != 1 ? 's' : ''} esta semana',
-                        style: const TextStyle(
+                        AppStrings.of(context).shiftsCount(_horarios.length),
+                        style: TextStyle(
                           fontSize: 12,
-                          color: _C.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                         ),
                       ),
                     ),
                   ),
                   Expanded(
                     child: _isLoading
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(
-                              color: _C.primaryLight,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           )
                         : _horarios.isEmpty
@@ -131,7 +189,7 @@ class _MiHorarioViewState extends State<MiHorarioView>
                             padding: const EdgeInsets.fromLTRB(16, 6, 16, 60),
                             itemCount: _horarios.length,
                             separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
+                                SizedBox(height: 10),
                             itemBuilder: (_, i) => _HorarioTile(
                               horario: _horarios[i],
                               nombreDia: _nombreDia,
@@ -151,60 +209,63 @@ class _MiHorarioViewState extends State<MiHorarioView>
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
     child: Row(
       children: [
-        _ScaleBtn(
-          onPressed: () => Navigator.pop(context),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: _C.border.withOpacity(0.4),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+        if (Navigator.canPop(context))
+          _ScaleBtn(
+            onPressed: () => Navigator.pop(context),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(context).colorScheme.primary.withAlpha(40).withOpacity(0.4),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 15,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-            child: const Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 15,
-              color: _C.primaryLight,
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        const Text(
-          'Mi Horario',
+          )
+        else
+          const SizedBox(width: 40),
+        SizedBox(width: 14),
+        Text(
+          AppStrings.of(context).myScheduleTitle,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const Spacer(),
+        Spacer(),
         _ScaleBtn(
           onPressed: _cargar,
           child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _C.surface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.2),
-              boxShadow: const [
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
+              boxShadow: [
                 BoxShadow(
-                  color: _C.shadowSm,
+                  color: Theme.of(context).colorScheme.primary.withAlpha(15),
                   blurRadius: 8,
                   offset: Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.refresh_rounded,
-              color: _C.primaryLight,
+              color: Theme.of(context).colorScheme.primary,
               size: 18,
             ),
           ),
@@ -217,9 +278,9 @@ class _MiHorarioViewState extends State<MiHorarioView>
     margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     decoration: BoxDecoration(
-      color: _C.surface,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: _C.border, width: 1.2),
+      border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
     ),
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -233,17 +294,17 @@ class _MiHorarioViewState extends State<MiHorarioView>
         ),
         Column(
           children: [
-            const Text(
-              'Semana del',
-              style: TextStyle(fontSize: 11, color: _C.textSecondary),
+            Text(
+              AppStrings.of(context).weekOf,
+              style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
             ),
-            const SizedBox(height: 2),
+            SizedBox(height: 2),
             Text(
               DateFormat('dd/MM/yyyy').format(ini),
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
-                color: _C.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ],
@@ -265,15 +326,32 @@ class _MiHorarioViewState extends State<MiHorarioView>
       final e = DateTime.parse(h['entrada']);
       return DateTime(e.year, e.month, e.day);
     }).toSet();
+
+    // Attendance dot colors
+    Color _dotColor(DateTime dia) {
+      final key = DateTime(dia.year, dia.month, dia.day);
+      final estado = _asistencias[key];
+      if (estado == null) {
+        return diasConTurno.contains(key)
+            ? Theme.of(context).colorScheme.primary.withOpacity(0.4)
+            : Colors.transparent;
+      }
+      switch (estado) {
+        case 'presente': return const Color(0xFF00C853);
+        case 'tardanza': return const Color(0xFFFF9800);
+        case 'falta': return Colors.redAccent;
+        default: return Theme.of(context).colorScheme.primary.withOpacity(0.4);
+      }
+    }
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border, width: 1.2),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 8, offset: Offset(0, 2)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -295,21 +373,21 @@ class _MiHorarioViewState extends State<MiHorarioView>
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: esHoy ? _C.primaryLight : _C.textSecondary,
+                  color: esHoy ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withAlpha(150),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Container(
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: esHoy ? _C.primaryLight : Colors.transparent,
+                  color: esHoy ? Theme.of(context).colorScheme.primary : Colors.transparent,
                   shape: BoxShape.circle,
                   border: esHoy
                       ? null
                       : Border.all(
                           color: tieneTurno
-                              ? _C.primaryLight.withOpacity(0.30)
+                              ? Theme.of(context).colorScheme.primary.withOpacity(0.30)
                               : Colors.transparent,
                           width: 1.5,
                         ),
@@ -322,18 +400,18 @@ class _MiHorarioViewState extends State<MiHorarioView>
                       fontWeight: FontWeight.w700,
                       color: esHoy
                           ? Colors.white
-                          : (tieneTurno ? _C.primaryLight : _C.textSecondary),
+                          : (tieneTurno ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface.withAlpha(150)),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Container(
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: tieneTurno ? _C.primaryLight : Colors.transparent,
+                  color: _dotColor(dia),
                 ),
               ),
             ],
@@ -351,29 +429,29 @@ class _MiHorarioViewState extends State<MiHorarioView>
           width: 80,
           height: 80,
           decoration: BoxDecoration(
-            color: _C.surface,
+            color: Theme.of(context).colorScheme.surface,
             shape: BoxShape.circle,
-            border: Border.all(color: _C.border, width: 1.5),
+            border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
           ),
-          child: const Icon(
+          child: Icon(
             Icons.event_busy_rounded,
-            color: _C.primaryLight,
+            color: Theme.of(context).colorScheme.primary,
             size: 36,
           ),
         ),
-        const SizedBox(height: 16),
-        const Text(
-          'Sin turnos esta semana',
+        SizedBox(height: 16),
+        Text(
+          AppStrings.of(context).noShiftsWeek,
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
-          'No tienes horarios asignados',
-          style: TextStyle(fontSize: 13, color: _C.textSecondary),
+        SizedBox(height: 6),
+        Text(
+          AppStrings.of(context).noShiftsAssigned,
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
         ),
       ],
     ),
@@ -396,17 +474,17 @@ class _HorarioTile extends StatelessWidget {
         ? salida.difference(entrada).inMinutes / 60.0
         : null;
     final color = esExtra
-        ? _C.warn
+        ? const Color(0xFFFF9800)
         : completado
-        ? _C.success
-        : _C.primaryLight;
+        ? const Color(0xFF00C853)
+        : Theme.of(context).colorScheme.primary;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border, width: 1.4),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 10, offset: Offset(0, 3)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.4),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 10, offset: Offset(0, 3)),
         ],
       ),
       child: Padding(
@@ -436,7 +514,7 @@ class _HorarioTile extends StatelessWidget {
                 children: [
                   Text(
                     ['L', 'M', 'X', 'J', 'V', 'S', 'D'][entrada.weekday - 1],
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -444,7 +522,7 @@ class _HorarioTile extends StatelessWidget {
                   ),
                   Text(
                     '${entrada.day}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Colors.white70,
@@ -453,34 +531,34 @@ class _HorarioTile extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     '${nombreDia(entrada.weekday)} ${entrada.day}/${entrada.month}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: _C.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 5),
+                  SizedBox(height: 5),
                   Row(
                     children: [
                       _TimeChip(
                         icon: Icons.login_rounded,
                         time: DateFormat('HH:mm').format(entrada),
-                        color: _C.success,
+                        color: const Color(0xFF00C853),
                       ),
                       if (salida != null) ...[
-                        const Padding(
+                        Padding(
                           padding: EdgeInsets.symmetric(horizontal: 6),
                           child: Icon(
                             Icons.arrow_forward_rounded,
                             size: 13,
-                            color: _C.textSecondary,
+                            color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                           ),
                         ),
                         _TimeChip(
@@ -492,32 +570,32 @@ class _HorarioTile extends StatelessWidget {
                     ],
                   ),
                   if (horas != null) ...[
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       '${horas.toStringAsFixed(1)} horas',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: _C.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                       ),
                     ),
                   ],
                   if (esExtra) ...[
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: _C.warn.withOpacity(0.10),
+                        color: const Color(0xFFFF9800).withOpacity(0.10),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Hora extra',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: _C.warn,
+                          color: const Color(0xFFFF9800),
                         ),
                       ),
                     ),
@@ -526,9 +604,9 @@ class _HorarioTile extends StatelessWidget {
               ),
             ),
             completado
-                ? const Icon(
+                ? Icon(
                     Icons.check_circle_rounded,
-                    color: _C.success,
+                    color: const Color(0xFF00C853),
                     size: 26,
                   )
                 : Container(
@@ -537,16 +615,16 @@ class _HorarioTile extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: _C.warn.withOpacity(0.10),
+                      color: const Color(0xFFFF9800).withOpacity(0.10),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _C.warn.withOpacity(0.30)),
+                      border: Border.all(color: const Color(0xFFFF9800).withOpacity(0.30)),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Activo',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: _C.warn,
+                        color: const Color(0xFFFF9800),
                       ),
                     ),
                   ),
@@ -571,7 +649,7 @@ class _TimeChip extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       Icon(icon, size: 11, color: color),
-      const SizedBox(width: 3),
+      SizedBox(width: 3),
       Text(
         time,
         style: TextStyle(
@@ -595,14 +673,14 @@ class _NavBtn extends StatelessWidget {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _C.border),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 8, offset: Offset(0, 2)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40)),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 8, offset: Offset(0, 2)),
         ],
       ),
-      child: Icon(icon, color: _C.primaryLight, size: 20),
+      child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
     ),
   );
 }

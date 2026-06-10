@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import '../../services/app_strings.dart';
 
 class _C {
   static const bg = Color(0xFFFFFFFF);
@@ -18,7 +19,7 @@ class _C {
 }
 
 class MisHorasView extends StatefulWidget {
-  const MisHorasView({super.key});
+  MisHorasView({super.key});
   @override
   State<MisHorasView> createState() => _MisHorasScreenState();
 }
@@ -37,7 +38,7 @@ class _MisHorasScreenState extends State<MisHorasView>
     super.initState();
     _fadeCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: Duration(milliseconds: 500),
     )..forward();
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _cargar();
@@ -85,9 +86,11 @@ class _MisHorasScreenState extends State<MisHorasView>
   void _calcular() {
     double n = 0, e = 0;
     for (var t in _turnos) {
-      final h = DateTime.parse(
-        t['salida'],
-      ).difference(DateTime.parse(t['entrada'])).inHours.toDouble();
+      final entrada = DateTime.parse(t['entrada']);
+      var salida = DateTime.parse(t['salida']);
+      if (salida.isBefore(entrada)) salida = salida.add(const Duration(days: 1));
+      final h = salida.difference(entrada).inMinutes / 60.0;
+      if (h <= 0) continue;
       if (t['es_extra'] == true)
         e += h;
       else
@@ -101,7 +104,7 @@ class _MisHorasScreenState extends State<MisHorasView>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _C.bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
           Positioned(
@@ -119,9 +122,9 @@ class _MisHorasScreenState extends State<MisHorasView>
                 _buildTopBar(),
                 Expanded(
                   child: _isLoading
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(
-                            color: _C.primaryLight,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         )
                       : FadeTransition(
@@ -132,23 +135,23 @@ class _MisHorasScreenState extends State<MisHorasView>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _buildPeriodo(),
-                                const SizedBox(height: 20),
+                                SizedBox(height: 20),
                                 _buildResumen(),
-                                const SizedBox(height: 20),
+                                SizedBox(height: 20),
                                 _buildPagoCard(),
-                                const SizedBox(height: 24),
+                                SizedBox(height: 24),
                                 _sectionLabel('Detalle de turnos'),
-                                const SizedBox(height: 12),
+                                SizedBox(height: 12),
                                 if (_turnos.isEmpty)
                                   _buildEmpty()
                                 else
                                   ListView.separated(
                                     shrinkWrap: true,
                                     physics:
-                                        const NeverScrollableScrollPhysics(),
+                                        NeverScrollableScrollPhysics(),
                                     itemCount: _turnos.length,
                                     separatorBuilder: (_, _) =>
-                                        const SizedBox(height: 10),
+                                        SizedBox(height: 10),
                                     itemBuilder: (_, i) => _TurnoTile(
                                       turno: _turnos[i],
                                       salario: _salario,
@@ -177,54 +180,54 @@ class _MisHorasScreenState extends State<MisHorasView>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.5),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: _C.border.withOpacity(0.4),
+                  color: Theme.of(context).colorScheme.primary.withAlpha(40).withOpacity(0.4),
                   blurRadius: 6,
-                  offset: const Offset(0, 2),
+                  offset: Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_back_ios_new_rounded,
               size: 15,
-              color: _C.primaryLight,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
         ),
-        const SizedBox(width: 14),
-        const Text(
-          'Mis Horas',
+        SizedBox(width: 14),
+        Text(
+          AppStrings.of(context).myHoursTitle,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: _C.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
-        const Spacer(),
+        Spacer(),
         _ScaleBtn(
           onPressed: _cargar,
           child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: _C.surface,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _C.border, width: 1.2),
-              boxShadow: const [
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
+              boxShadow: [
                 BoxShadow(
-                  color: _C.shadowSm,
+                  color: Theme.of(context).colorScheme.primary.withAlpha(15),
                   blurRadius: 8,
                   offset: Offset(0, 2),
                 ),
               ],
             ),
-            child: const Icon(
+            child: Icon(
               Icons.refresh_rounded,
-              color: _C.primaryLight,
+              color: Theme.of(context).colorScheme.primary,
               size: 18,
             ),
           ),
@@ -235,10 +238,10 @@ class _MisHorasScreenState extends State<MisHorasView>
 
   Widget _sectionLabel(String l) => Text(
     l.toUpperCase(),
-    style: const TextStyle(
+    style: TextStyle(
       fontSize: 11,
       fontWeight: FontWeight.w700,
-      color: _C.textSecondary,
+      color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
       letterSpacing: 2.0,
     ),
   );
@@ -246,9 +249,9 @@ class _MisHorasScreenState extends State<MisHorasView>
   Widget _buildPeriodo() => Container(
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: _C.surface,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: _C.border, width: 1.2),
+      border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.2),
     ),
     child: Row(
       children: [_PTab('Esta semana', 'semana'), _PTab('Este mes', 'mes')],
@@ -264,17 +267,17 @@ class _MisHorasScreenState extends State<MisHorasView>
           _cargar();
         },
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: sel ? _C.primaryLight : Colors.transparent,
+            color: sel ? Theme.of(context).colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             boxShadow: sel
                 ? [
                     BoxShadow(
-                      color: _C.primaryLight.withOpacity(0.30),
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.30),
                       blurRadius: 12,
-                      offset: const Offset(0, 3),
+                      offset: Offset(0, 3),
                     ),
                   ]
                 : [],
@@ -285,7 +288,7 @@ class _MisHorasScreenState extends State<MisHorasView>
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: sel ? Colors.white : _C.textSecondary,
+                color: sel ? Colors.white : Theme.of(context).colorScheme.onSurface.withAlpha(150),
               ),
             ),
           ),
@@ -298,19 +301,19 @@ class _MisHorasScreenState extends State<MisHorasView>
     children: [
       Expanded(
         child: _StatCard(
-          label: 'Horas normales',
+          label: AppStrings.of(context).normalHours,
           value: '${_totalNormales.toInt()}h',
           icon: Icons.access_time_rounded,
-          color: _C.success,
+          color: Color(0xFF00C853),
         ),
       ),
-      const SizedBox(width: 12),
+      SizedBox(width: 12),
       Expanded(
         child: _StatCard(
-          label: 'Horas extras',
+          label: AppStrings.of(context).extraHours,
           value: '${_totalExtras.toInt()}h',
           icon: Icons.timer_rounded,
-          color: _C.warn,
+          color: Color(0xFFFF9800),
         ),
       ),
     ],
@@ -320,24 +323,24 @@ class _MisHorasScreenState extends State<MisHorasView>
     width: double.infinity,
     padding: const EdgeInsets.all(24),
     decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [_C.primary, _C.primaryLight],
+      gradient: LinearGradient(
+        colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(20),
       boxShadow: [
         BoxShadow(
-          color: _C.primary.withOpacity(0.35),
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.35),
           blurRadius: 20,
-          offset: const Offset(0, 6),
+          offset: Offset(0, 6),
         ),
       ],
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
             Icon(
               Icons.account_balance_wallet_rounded,
@@ -351,20 +354,20 @@ class _MisHorasScreenState extends State<MisHorasView>
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Text(
           '\$${_totalPago.toStringAsFixed(2)}',
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
             fontSize: 36,
             fontWeight: FontWeight.w800,
             letterSpacing: -0.5,
           ),
         ),
-        const SizedBox(height: 6),
+        SizedBox(height: 6),
         Text(
           '\$${_salario.toStringAsFixed(2)}/h normal · \$${(_salario * 1.5).toStringAsFixed(2)}/h extra',
-          style: const TextStyle(color: Colors.white60, fontSize: 12),
+          style: TextStyle(color: Colors.white60, fontSize: 12),
         ),
       ],
     ),
@@ -379,29 +382,29 @@ class _MisHorasScreenState extends State<MisHorasView>
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: _C.surface,
+              color: Theme.of(context).colorScheme.surface,
               shape: BoxShape.circle,
-              border: Border.all(color: _C.border, width: 1.5),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.5),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.history_rounded,
-              color: _C.primaryLight,
+              color: Theme.of(context).colorScheme.primary,
               size: 36,
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Sin registros',
+          SizedBox(height: 16),
+          Text(
+            AppStrings.of(context).noHoursRecorded,
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: _C.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             'No hay turnos en este período',
-            style: TextStyle(fontSize: 13, color: _C.textSecondary),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
           ),
         ],
       ),
@@ -423,11 +426,11 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: _C.border, width: 1.4),
-      boxShadow: const [
-        BoxShadow(color: _C.shadowSm, blurRadius: 10, offset: Offset(0, 3)),
+      border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.4),
+      boxShadow: [
+        BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 10, offset: Offset(0, 3)),
       ],
     ),
     child: Column(
@@ -442,7 +445,7 @@ class _StatCard extends StatelessWidget {
           ),
           child: Icon(icon, color: color, size: 20),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: 10),
         Text(
           value,
           style: TextStyle(
@@ -451,10 +454,10 @@ class _StatCard extends StatelessWidget {
             color: color,
           ),
         ),
-        const SizedBox(height: 2),
+        SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: _C.textSecondary),
+          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
         ),
       ],
     ),
@@ -468,18 +471,19 @@ class _TurnoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final entrada = DateTime.parse(turno['entrada']);
-    final salida = DateTime.parse(turno['salida']);
-    final horas = salida.difference(entrada).inHours;
+    var salida = DateTime.parse(turno['salida']);
+    if (salida.isBefore(entrada)) salida = salida.add(const Duration(days: 1));
+    final horas = salida.difference(entrada).inMinutes / 60.0;
     final esExtra = turno['es_extra'] == true;
     final pago = horas * salario * (esExtra ? 1.5 : 1);
-    final color = esExtra ? _C.warn : _C.success;
+    final color = esExtra ? Color(0xFFFF9800) : Color(0xFF00C853);
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _C.border, width: 1.4),
-        boxShadow: const [
-          BoxShadow(color: _C.shadowSm, blurRadius: 10, offset: Offset(0, 3)),
+        border: Border.all(color: Theme.of(context).colorScheme.primary.withAlpha(40), width: 1.4),
+        boxShadow: [
+          BoxShadow(color: Theme.of(context).colorScheme.primary.withAlpha(15), blurRadius: 10, offset: Offset(0, 3)),
         ],
       ),
       child: Padding(
@@ -500,14 +504,14 @@ class _TurnoTile extends StatelessWidget {
                   BoxShadow(
                     color: color.withOpacity(0.30),
                     blurRadius: 10,
-                    offset: const Offset(0, 3),
+                    offset: Offset(0, 3),
                   ),
                 ],
               ),
               child: Center(
                 child: Text(
                   '${horas}h',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -515,53 +519,53 @@ class _TurnoTile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     DateFormat('EEEE, dd/MM/yyyy', 'es_ES').format(entrada),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: _C.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.login_rounded,
                         size: 12,
-                        color: _C.success,
+                        color: Color(0xFF00C853),
                       ),
-                      const SizedBox(width: 3),
+                      SizedBox(width: 3),
                       Text(
                         DateFormat('HH:mm').format(entrada),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: _C.success,
+                          color: Color(0xFF00C853),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(horizontal: 6),
                         child: Icon(
                           Icons.arrow_forward_rounded,
                           size: 12,
-                          color: _C.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(150),
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         Icons.logout_rounded,
                         size: 12,
                         color: Colors.redAccent,
                       ),
-                      const SizedBox(width: 3),
+                      SizedBox(width: 3),
                       Text(
                         DateFormat('HH:mm').format(salida),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: Colors.redAccent,
                           fontWeight: FontWeight.w600,
@@ -570,22 +574,22 @@ class _TurnoTile extends StatelessWidget {
                     ],
                   ),
                   if (esExtra) ...[
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: _C.warn.withOpacity(0.10),
+                        color: Color(0xFFFF9800).withOpacity(0.10),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'Hora extra',
+                      child: Text(
+                        AppStrings.of(context).extra,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          color: _C.warn,
+                          color: Color(0xFFFF9800),
                         ),
                       ),
                     ),
@@ -606,7 +610,7 @@ class _TurnoTile extends StatelessWidget {
                 ),
                 Text(
                   '$horas h',
-                  style: const TextStyle(fontSize: 12, color: _C.textSecondary),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withAlpha(150)),
                 ),
               ],
             ),
@@ -633,7 +637,7 @@ class _ScaleBtnState extends State<_ScaleBtn>
     super.initState();
     _c = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 120),
+      duration: Duration(milliseconds: 120),
       lowerBound: 0.94,
       upperBound: 1.0,
       value: 1.0,
@@ -680,7 +684,7 @@ class _WavePainter extends CustomPainter {
         ..lineTo(0, size.height)
         ..close(),
       Paint()
-        ..color = const Color(0xFFDDEEFF).withOpacity(0.7)
+        ..color = Color(0xFFDDEEFF).withOpacity(0.7)
         ..style = PaintingStyle.fill,
     );
   }

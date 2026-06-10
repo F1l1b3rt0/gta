@@ -63,6 +63,7 @@ class _RegisterContentState extends State<_RegisterContent>
   final _passFocus = FocusNode();
   final _confirmFocus = FocusNode();
   final _salarioFocus = FocusNode();
+  final _claveFocus = FocusNode();
 
   @override
   void initState() {
@@ -92,6 +93,7 @@ class _RegisterContentState extends State<_RegisterContent>
     _passFocus.dispose();
     _confirmFocus.dispose();
     _salarioFocus.dispose();
+    _claveFocus.dispose();
     super.dispose();
   }
 
@@ -173,6 +175,10 @@ class _RegisterContentState extends State<_RegisterContent>
                                 const SizedBox(height: 20),
                                 if (viewModel.rol == 'empleado') ...[
                                   _buildSalarioField(viewModel),
+                                  const SizedBox(height: 20),
+                                ],
+                                if (viewModel.rol == 'gerente') ...[
+                                  _buildClaveGerenteField(viewModel),
                                   const SizedBox(height: 20),
                                 ],
                                 _buildRegisterButton(viewModel),
@@ -390,6 +396,19 @@ class _RegisterContentState extends State<_RegisterContent>
         if (v == null || v.isEmpty) return 'Ingrese el salario';
         if (double.tryParse(v) == null) return 'Número inválido';
         if (double.parse(v) <= 0) return 'Debe ser mayor a 0';
+        return null;
+      },
+    );
+  }
+
+  Widget _buildClaveGerenteField(AuthViewModel viewModel) {
+    return _SnakePasswordField(
+      focusNode: _claveFocus,
+      label: 'Clave de acceso gerente',
+      hint: '••••••••',
+      onChanged: (v) => viewModel.setClaveGerente(v ?? ''),
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Ingrese la clave de gerente';
         return null;
       },
     );
