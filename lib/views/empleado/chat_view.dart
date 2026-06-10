@@ -49,18 +49,28 @@ class _ChatViewState extends State<ChatView>
 
   Future<void> _cargarDatosUsuario() async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      final perfil = await Supabase.instance.client
+    if (user == null) return;
+    try {
+      // Try id = auth.uid() first
+      var perfil = await Supabase.instance.client
           .from('empleados')
           .select('id, nombre, avatar_url')
           .eq('id', user.id)
-          .single();
-      setState(() {
-        _empleadoId = perfil['id'];
-        _empleadoNombre = perfil['nombre'];
-        _empleadoAvatar = perfil['avatar_url'] ?? '';
-      });
-    }
+          .maybeSingle();
+      // Fallback: try user_id field
+      perfil ??= await Supabase.instance.client
+          .from('empleados')
+          .select('id, nombre, avatar_url')
+          .eq('user_id', user.id)
+          .maybeSingle();
+      if (perfil != null && mounted) {
+        setState(() {
+          _empleadoId = perfil!['id'] ?? '';
+          _empleadoNombre = perfil['nombre'] ?? '';
+          _empleadoAvatar = perfil['avatar_url'] ?? '';
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _cargarMensajes() async {
@@ -376,7 +386,7 @@ class _ChatViewState extends State<ChatView>
                         ),
                         // ========== MENSAJES ==========
                         Expanded(
-                          child: _mensajes.isEmpty
+                          child: ClipRect(child: _mensajes.isEmpty
                               ? Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
@@ -445,7 +455,7 @@ class _ChatViewState extends State<ChatView>
                                     );
                                   },
                                 ),
-                        ),
+                        )),
                         // ========== INPUT ==========
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -462,38 +472,36 @@ class _ChatViewState extends State<ChatView>
                           child: Row(
                             children: [
                               Expanded(
-                                child: TextField(
-                                  controller: _mensajeController,
-                                  decoration: InputDecoration(
-                                    hintText: s.typeMessage,
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey.shade400,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade200,
+                                child: Builder(builder: (context) {
+                                  final cs = Theme.of(context).colorScheme;
+                                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                                  return TextField(
+                                    controller: _mensajeController,
+                                    style: TextStyle(color: cs.onSurface),
+                                    decoration: InputDecoration(
+                                      hintText: s.typeMessage,
+                                      hintStyle: TextStyle(color: cs.onSurface.withAlpha(100)),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: cs.primary.withAlpha(isDark ? 60 : 40)),
                                       ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide(
-                                        color: Colors.blue.shade400,
-                                        width: 2,
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: cs.primary.withAlpha(isDark ? 60 : 40)),
                                       ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: cs.primary, width: 2),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      filled: true,
+                                      fillColor: isDark ? cs.surface : Colors.grey.shade50,
                                     ),
-                                    contentPadding:
-                                        const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey.shade50,
-                                  ),
-                                  maxLines: null,
-                                  textInputAction: TextInputAction.send,
-                                  onSubmitted: (_) => _enviarMensaje(),
-                                ),
+                                    maxLines: null,
+                                    textInputAction: TextInputAction.send,
+                                    onSubmitted: (_) => _enviarMensaje(),
+                                  );
+                                }),
                               ),
                               const SizedBox(width: 10),
                               Container(
@@ -658,20 +666,6 @@ class _ChatViewState extends State<ChatView>
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          // Botón de opciones visible (editar/borrar)
-          GestureDetector(
-            onTap: () => _mostrarOpcionesMensaje(mensaje),
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade200,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.more_horiz,
-                  size: 16, color: Colors.grey.shade600),
-            ),
-          ),
-          const SizedBox(width: 6),
           bubble,
           const SizedBox(width: 8),
           avatar,

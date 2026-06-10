@@ -98,8 +98,8 @@ class _AsistenciasViewState extends State<AsistenciasView> {
           .from('turnos')
           .select('entrada')
           .eq('empleado_id', empleadoId)
-          .gte('entrada', '$hoy 00:00:00')
-          .lte('entrada', '$hoy 23:59:59')
+          .gte('entrada', '${hoy}T00:00:00')
+          .lte('entrada', '${hoy}T23:59:59')
           .maybeSingle();
 
       if (turno != null && turno['entrada'] != null) {
@@ -110,10 +110,12 @@ class _AsistenciasViewState extends State<AsistenciasView> {
         }
       }
 
+      // hora_entrada is stored as TIME (HH:mm:ss)
+      final horaStr = DateFormat('HH:mm:ss').format(horaActual);
       await Supabase.instance.client.from('asistencias').insert({
         'empleado_id': empleadoId,
         'fecha': hoy,
-        'hora_entrada': horaActual.toIso8601String(),
+        'hora_entrada': horaStr,
         'estado': estado,
       });
 
@@ -137,8 +139,8 @@ class _AsistenciasViewState extends State<AsistenciasView> {
       final turnos = await Supabase.instance.client
           .from('turnos')
           .select('empleado_id')
-          .gte('entrada', '$hoy 00:00:00')
-          .lte('entrada', '$hoy 23:59:59');
+          .gte('entrada', '${hoy}T00:00:00')
+          .lte('entrada', '${hoy}T23:59:59');
 
       final yaRegistrados = _asistencias.map((a) => a['empleado_id'] as String).toSet();
       int count = 0;

@@ -208,7 +208,7 @@ class _GerenteNavRail extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          width: 68,
+          width: 54,
           decoration: BoxDecoration(
             color: isDark
                 ? cs.surface.withAlpha(200)

@@ -292,37 +292,36 @@ Responde siempre en español y de forma breve y clara.''';
                           child: Row(
                             children: [
                               Expanded(
-                                child: TextField(
-                                  controller: _controller,
-                                  decoration: InputDecoration(
-                                    hintText: 'Escribe tu pregunta...',
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey.shade400,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade200,
+                                child: Builder(builder: (context) {
+                                  final cs = Theme.of(context).colorScheme;
+                                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                                  return TextField(
+                                    controller: _controller,
+                                    style: TextStyle(color: cs.onSurface),
+                                    decoration: InputDecoration(
+                                      hintText: 'Escribe tu pregunta...',
+                                      hintStyle: TextStyle(color: cs.onSurface.withAlpha(100)),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: cs.primary.withAlpha(isDark ? 60 : 40)),
                                       ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(24),
-                                      borderSide: BorderSide(
-                                        color: Colors.blue.shade400,
-                                        width: 2,
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: cs.primary.withAlpha(isDark ? 60 : 40)),
                                       ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(24),
+                                        borderSide: BorderSide(color: cs.primary, width: 2),
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                      filled: true,
+                                      fillColor: isDark ? cs.surface : Colors.grey.shade50,
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.grey.shade50,
-                                  ),
-                                  maxLines: null,
-                                  textInputAction: TextInputAction.send,
-                                  onSubmitted: (_) => _enviarMensaje(),
-                                ),
+                                    maxLines: null,
+                                    textInputAction: TextInputAction.send,
+                                    onSubmitted: (_) => _enviarMensaje(),
+                                  );
+                                }),
                               ),
                               const SizedBox(width: 10),
                               Container(

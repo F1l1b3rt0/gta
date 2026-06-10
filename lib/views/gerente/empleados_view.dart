@@ -54,12 +54,37 @@ class _EmpleadosViewState extends State<EmpleadosView>
   Future<void> _cargarEmpleados() async {
     setState(() => _isLoading = true);
     try {
-      final r = await Supabase.instance.client
+      // Fetch empleados
+      final empRes = await Supabase.instance.client
           .from('empleados')
           .select('*')
           .order('nombre');
+      final empleados = List<Map<String, dynamic>>.from(empRes);
+
+      // Fetch gerentes and normalize to same shape
+      List<Map<String, dynamic>> gerentes = [];
+      try {
+        final gerRes = await Supabase.instance.client
+            .from('gerentes')
+            .select('*')
+            .order('nombre');
+        gerentes = (gerRes as List).map((g) => {
+          'id': g['id'],
+          'nombre': g['nombre'] ?? '',
+          'email': g['email'] ?? '',
+          'rol': 'gerente',
+          'salario_por_hora': g['salario_por_hora'] ?? 0,
+          'avatar_url': g['avatar_url'] ?? '',
+          'user_id': g['user_id'],
+          ...Map<String, dynamic>.from(g),
+        }).toList();
+      } catch (_) {}
+
+      final todos = [...empleados, ...gerentes];
+      todos.sort((a, b) => (a['nombre'] as String).compareTo(b['nombre'] as String));
+
       setState(() {
-        _empleados = List<Map<String, dynamic>>.from(r);
+        _empleados = todos;
         _isLoading = false;
       });
     } catch (_) {
